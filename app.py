@@ -116,7 +116,7 @@ COLOR_VERDE = '#002F2A'
 
 st.set_page_config(
     page_title="SADER - Reportes", 
-    page_icon="📊", 
+    page_icon="", 
     layout="wide", 
     initial_sidebar_state="expanded"
 )
@@ -172,14 +172,14 @@ def mostrar_estado_datos():
         if 'map' in metadata:
             st.markdown(f"""
             <div class="data-status data-loaded">
-                📊 <strong>MAP cargado:</strong> {metadata['map']['filename']}<br>
+                 <strong>MAP cargado:</strong> {metadata['map']['filename']}<br>
                 <small>Actualizado: {metadata['map']['fecha_carga']}</small>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
             <div class="data-status data-empty">
-                ⚠️ <strong>MAP:</strong> Sin datos cargados
+                 <strong>MAP:</strong> Sin datos cargados
             </div>
             """, unsafe_allow_html=True)
     
@@ -187,14 +187,14 @@ def mostrar_estado_datos():
         if 'sicop' in metadata:
             st.markdown(f"""
             <div class="data-status data-loaded">
-                📊 <strong>SICOP cargado:</strong> {metadata['sicop']['filename']}<br>
+                 <strong>SICOP cargado:</strong> {metadata['sicop']['filename']}<br>
                 <small>Actualizado: {metadata['sicop']['fecha_carga']}</small>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
             <div class="data-status data-empty">
-                ⚠️ <strong>SICOP:</strong> Sin datos cargados
+                 <strong>SICOP:</strong> Sin datos cargados
             </div>
             """, unsafe_allow_html=True)
 
@@ -208,7 +208,7 @@ with st.sidebar:
     st.markdown("### Navegación")
     pagina = st.radio(
         "Selecciona vista:",
-        ["🏠 Inicio", "📤 Cargar Reportes", "📊 Ver MAP", "📈 Ver SICOP"],
+        [" Inicio", " Cargar Reportes", " Ver MAP", " Ver SICOP"],
         label_visibility="collapsed"
     )
     
@@ -218,14 +218,14 @@ with st.sidebar:
     metadata = cargar_metadata()
     
     if 'map' in metadata:
-        st.success(f"✅ MAP: {metadata['map']['filename'][:20]}...")
+        st.success(f" MAP: {metadata['map']['filename'][:20]}...")
     else:
-        st.warning("⚠️ MAP: Sin datos")
+        st.warning(" MAP: Sin datos")
     
     if 'sicop' in metadata:
-        st.success(f"✅ SICOP: {metadata['sicop']['filename'][:20]}...")
+        st.success(f" SICOP: {metadata['sicop']['filename'][:20]}...")
     else:
-        st.warning("⚠️ SICOP: Sin datos")
+        st.warning(" SICOP: Sin datos")
 
 # ============================================================================
 # HEADER
@@ -237,7 +237,7 @@ st.markdown('<div class="main-header"><h1>Sistema de Reportes Presupuestarios</h
 # PÁGINA: INICIO
 # ============================================================================
 
-if pagina == "🏠 Inicio":
+if pagina == " Inicio":
     st.markdown("### Bienvenido al Sistema de Reportes")
     
     mostrar_estado_datos()
@@ -249,7 +249,7 @@ if pagina == "🏠 Inicio":
     with col1:
         st.markdown("""
         <div class="instrucciones-box">
-            <h4>📤 Cargar Reportes</h4>
+            <h4> Cargar Reportes</h4>
             <p>Sube archivos CSV de MAP o SICOP. Los datos quedarán disponibles para todos los usuarios hasta que se cargue un nuevo archivo.</p>
             <ul>
                 <li>Los reportes se guardan automáticamente</li>
@@ -262,7 +262,7 @@ if pagina == "🏠 Inicio":
     with col2:
         st.markdown("""
         <div class="instrucciones-box">
-            <h4>📊 Ver Reportes</h4>
+            <h4> Ver Reportes</h4>
             <p>Navega entre los reportes cargados sin perder información.</p>
             <ul>
                 <li><strong>Ver MAP:</strong> Cuadro de presupuesto y Dashboard</li>
@@ -276,7 +276,7 @@ if pagina == "🏠 Inicio":
 # PÁGINA: CARGAR REPORTES
 # ============================================================================
 
-elif pagina == "📤 Cargar Reportes":
+elif pagina == " Cargar Reportes":
     st.markdown("### Cargar Nuevos Reportes")
     
     mostrar_estado_datos()
@@ -287,7 +287,7 @@ elif pagina == "📤 Cargar Reportes":
     
     # Columna MAP
     with col_map:
-        st.markdown("#### 📊 Cargar MAP")
+        st.markdown("####  Cargar MAP")
         uploaded_map = st.file_uploader(
             "Archivo CSV de MAP",
             type=['csv'],
@@ -304,7 +304,7 @@ elif pagina == "📤 Cargar Reportes":
                     resultados_map = procesar_map(df_map, filename_map)
                     guardar_datos_map(resultados_map, filename_map)
                 
-                st.success(f"✅ MAP cargado: **{filename_map}** ({len(df_map):,} registros)")
+                st.success(f" MAP cargado: **{filename_map}** ({len(df_map):,} registros)")
                 st.info("Los datos están disponibles para todos los usuarios.")
                 st.rerun()
                 
@@ -313,7 +313,7 @@ elif pagina == "📤 Cargar Reportes":
     
     # Columna SICOP
     with col_sicop:
-        st.markdown("#### 📈 Cargar SICOP")
+        st.markdown("####  Cargar SICOP")
         uploaded_sicop = st.file_uploader(
             "Archivo CSV de SICOP",
             type=['csv'],
@@ -330,7 +330,7 @@ elif pagina == "📤 Cargar Reportes":
                     resultados_sicop = procesar_sicop(df_sicop, filename_sicop)
                     guardar_datos_sicop(resultados_sicop, df_sicop, filename_sicop)
                 
-                st.success(f"✅ SICOP cargado: **{filename_sicop}** ({len(df_sicop):,} registros)")
+                st.success(f" SICOP cargado: **{filename_sicop}** ({len(df_sicop):,} registros)")
                 st.info("Los datos están disponibles para todos los usuarios.")
                 st.rerun()
                 
@@ -341,11 +341,11 @@ elif pagina == "📤 Cargar Reportes":
 # PÁGINA: VER MAP
 # ============================================================================
 
-elif pagina == "📊 Ver MAP":
+elif pagina == " Ver MAP":
     resultados = cargar_datos_map()
     
     if resultados is None:
-        st.warning("⚠️ No hay datos de MAP cargados. Ve a 'Cargar Reportes' para subir un archivo.")
+        st.warning(" No hay datos de MAP cargados. Ve a 'Cargar Reportes' para subir un archivo.")
         st.stop()
     
     metadata = resultados['metadata']
@@ -378,7 +378,7 @@ elif pagina == "📊 Ver MAP":
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Tabs MAP
-    tab1, tab2, tab3 = st.tabs(["📋 Resumen General", "📊 Dashboard Presupuesto", "📈 Gráficas"])
+    tab1, tab2, tab3 = st.tabs([" Resumen General", " Dashboard Presupuesto", " Gráficas"])
     
     with tab1:
         categorias = resultados['categorias']
@@ -530,7 +530,7 @@ elif pagina == "📊 Ver MAP":
     excel_bytes = generar_excel_map(resultados)
     filename_excel = f'Cuadro_Presupuesto_{date.today().strftime("%d%b%Y").upper()}.xlsx'
     st.download_button(
-        label="📥 Descargar Excel MAP",
+        label=" Descargar Excel MAP",
         data=excel_bytes,
         file_name=filename_excel,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -540,11 +540,11 @@ elif pagina == "📊 Ver MAP":
 # PÁGINA: VER SICOP
 # ============================================================================
 
-elif pagina == "📈 Ver SICOP":
+elif pagina == " Ver SICOP":
     datos_sicop = cargar_datos_sicop()
     
     if datos_sicop is None:
-        st.warning("⚠️ No hay datos de SICOP cargados. Ve a 'Cargar Reportes' para subir un archivo.")
+        st.warning(" No hay datos de SICOP cargados. Ve a 'Cargar Reportes' para subir un archivo.")
         st.stop()
     
     resultados = datos_sicop['resultados']
@@ -580,7 +580,7 @@ elif pagina == "📈 Ver SICOP":
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["📋 Por Sección", "🎯 Dashboard Austeridad", "📈 Gráficas"])
+    tab1, tab2, tab3 = st.tabs([" Por Sección", " Dashboard Austeridad", " Gráficas"])
     
     with tab1:
         subtotales = resultados['subtotales']
@@ -691,7 +691,7 @@ elif pagina == "📈 Ver SICOP":
         filename_aust = f'Dashboard_Austeridad_{ur_codigo}_{date.today().strftime("%d%b%Y").upper()}.xlsx'
         
         st.download_button(
-            label="📥 Descargar Excel Austeridad",
+            label=" Descargar Excel Austeridad",
             data=excel_aust_bytes,
             file_name=filename_aust,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -716,7 +716,7 @@ elif pagina == "📈 Ver SICOP":
     excel_bytes = generar_excel_sicop(resultados)
     filename_excel = f'Estado_Ejercicio_SICOP_{date.today().strftime("%d%b%Y").upper()}.xlsx'
     st.download_button(
-        label="📥 Descargar Excel SICOP",
+        label=" Descargar Excel SICOP",
         data=excel_bytes,
         file_name=filename_excel,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
