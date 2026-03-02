@@ -2229,3 +2229,140 @@ CUENTA_PUBLICA_2025 = {
     '38401JAG': 160680.00,
     '38501I6L': 10506.00,
 }
+# ============================================================================
+# PASIVOS 2026 - DATOS PRECARGADOS
+# Fuente: Formato_de_pasivos_2026_-_Fiscales_totalidad.xlsx
+# Estructura: UR → {'Devengado': x, 'Pagado': y, 'Pasivo': z}
+# - Devengado: Pasivos reportados a la SHCP
+# - Pagado: Pasivos pagados en COP 10
+# - Pasivo: Monto pendiente (devengado - pagado)
+# ============================================================================
+
+PASIVOS_2026 = {
+    '100': {'Devengado': 816057.37, 'Pagado': 682598.85, 'Pasivo': 133458.52},
+    '108': {'Devengado': 39010.0, 'Pagado': 0.0, 'Pasivo': 39010.0},
+    '111': {'Devengado': 1014618.77, 'Pagado': 935602.56, 'Pasivo': 79016.21},
+    '113': {'Devengado': 445791.5, 'Pagado': 140774.0, 'Pasivo': 305017.5},
+    '117': {'Devengado': 388274205.56, 'Pagado': 20422.0, 'Pasivo': 388253783.56},
+    '121': {'Devengado': 207957.91, 'Pagado': 198459.15, 'Pasivo': 9498.76},
+    '200': {'Devengado': 298776.53, 'Pagado': 0.0, 'Pasivo': 298776.53},
+    '212': {'Devengado': 103466.89, 'Pagado': 0.0, 'Pasivo': 103466.89},
+    '214': {'Devengado': 18989.01, 'Pagado': 0.0, 'Pasivo': 18989.01},
+    '221': {'Devengado': 8997101.66, 'Pagado': 7085505.79, 'Pasivo': 1911595.87},
+    '222': {'Devengado': 213934180.0, 'Pagado': 213408676.5, 'Pasivo': 525503.5},
+    '225': {'Devengado': 348136.68, 'Pagado': 302846.98, 'Pasivo': 45289.7},
+    '226': {'Devengado': 509967.51, 'Pagado': 151045.26, 'Pasivo': 358922.25},
+    '227': {'Devengado': 473158.89, 'Pagado': 0.0, 'Pasivo': 473158.89},
+    '230': {'Devengado': 21469.53, 'Pagado': 0.0, 'Pasivo': 21469.53},
+    '231': {'Devengado': 145347.49, 'Pagado': 0.0, 'Pasivo': 145347.49},
+    '232': {'Devengado': 206025.65, 'Pagado': 0.0, 'Pasivo': 206025.65},
+    '233': {'Devengado': 559194.51, 'Pagado': 0.0, 'Pasivo': 559194.51},
+    '240': {'Devengado': 137630.99, 'Pagado': 0.0, 'Pasivo': 137631.99},
+    '241': {'Devengado': 137627.65, 'Pagado': 0.0, 'Pasivo': 137348.65},
+    '242': {'Devengado': 133932.24, 'Pagado': 0.0, 'Pasivo': 132168.19},
+    '245': {'Devengado': 90708.97, 'Pagado': 59769.0, 'Pasivo': 30939.97},
+    '260': {'Devengado': 1534475.39, 'Pagado': 1114929.62, 'Pasivo': 419545.77},
+    '261': {'Devengado': 837601.0, 'Pagado': 235981.81, 'Pasivo': 601619.19},
+    '262': {'Devengado': 2264746.02, 'Pagado': 1950348.55, 'Pasivo': 314397.47},
+    '263': {'Devengado': 1224868.22, 'Pagado': 72476.52, 'Pasivo': 1152391.7},
+    '264': {'Devengado': 3410796.34, 'Pagado': 0.0, 'Pasivo': 3410796.34},
+    '265': {'Devengado': 791170.2, 'Pagado': 685756.12, 'Pasivo': 105414.08},
+    '266': {'Devengado': 17555230.55, 'Pagado': 14952085.48, 'Pasivo': 2603145.07},
+    '267': {'Devengado': 41774.83, 'Pagado': 22167.87, 'Pasivo': 19606.96},
+    '268': {'Devengado': 6949012.66, 'Pagado': 5957837.52, 'Pasivo': 886679.42},
+    '269': {'Devengado': 5543179.22, 'Pagado': 4432874.05, 'Pasivo': 1110305.16},
+    '270': {'Devengado': 14075066.55, 'Pagado': 7453753.81, 'Pasivo': 6621312.74},
+    '271': {'Devengado': 3434700.41, 'Pagado': 0.0, 'Pasivo': 3434700.41},
+    '272': {'Devengado': 4598784.18, 'Pagado': 3870490.44, 'Pasivo': 728293.74},
+    '273': {'Devengado': 664251.27, 'Pagado': 0.0, 'Pasivo': 664251.27},
+    '274': {'Devengado': 1108348.89, 'Pagado': 3355534.9, 'Pasivo': 1110348.89},
+    '275': {'Devengado': 2678125.04, 'Pagado': 2393949.58, 'Pasivo': 284175.46},
+    '276': {'Devengado': 3297730.32, 'Pagado': 2760952.78, 'Pasivo': 543902.55},
+    '277': {'Devengado': 81627.43, 'Pagado': 0.0, 'Pasivo': 81627.43},
+    '278': {'Devengado': 4431021.2, 'Pagado': 4007924.14, 'Pasivo': 418828.09},
+    '279': {'Devengado': 1687582.87, 'Pagado': 0.0, 'Pasivo': 1687582.87},
+    '280': {'Devengado': 615844.07, 'Pagado': 297275.39, 'Pasivo': 325424.93},
+    '281': {'Devengado': 12114.98, 'Pagado': 0.0, 'Pasivo': 12114.98},
+    '282': {'Devengado': 3988044.82, 'Pagado': 3156665.53, 'Pasivo': 831379.29},
+    '283': {'Devengado': 9427901.63, 'Pagado': 4510534.89, 'Pasivo': 4917366.74},
+    '284': {'Devengado': 3264755.74, 'Pagado': 2576400.91, 'Pasivo': 688354.83},
+    '285': {'Devengado': 700313.23, 'Pagado': 66420.0, 'Pasivo': 633893.23},
+    '286': {'Devengado': 954678.08, 'Pagado': 0.0, 'Pasivo': 954678.08},
+    '287': {'Devengado': 824350.86, 'Pagado': 741871.75, 'Pasivo': 82479.11},
+    '288': {'Devengado': 27760.47, 'Pagado': 0.0, 'Pasivo': 716031.48},
+    '289': {'Devengado': 1945410.77, 'Pagado': 1931899.59, 'Pasivo': 13511.18},
+    '290': {'Devengado': 107696.78, 'Pagado': 0.0, 'Pasivo': 148410.46},
+    '291': {'Devengado': 1223961.85, 'Pagado': 0.0, 'Pasivo': 1223961.85},
+    '292': {'Devengado': 685453.72, 'Pagado': 189946.37, 'Pasivo': 495507.35},
+    '311': {'Devengado': 108749.0, 'Pagado': 0.0, 'Pasivo': 108749.0},
+    '400': {'Devengado': 583646.36, 'Pagado': 47863.83, 'Pasivo': 535782.53},
+    '410': {'Devengado': 6667.0, 'Pagado': 0.0, 'Pasivo': 6667.0},
+    '411': {'Devengado': 300745.25, 'Pagado': 9538.0, 'Pasivo': 291207.25},
+    '413': {'Devengado': 613104.01, 'Pagado': 0.0, 'Pasivo': 613104.01},
+    '500': {'Devengado': 0.0, 'Pagado': 0.0, 'Pasivo': 0.0},
+    '510': {'Devengado': 0.0, 'Pagado': 0.0, 'Pasivo': 0.0},
+    '511': {'Devengado': 116448568.66, 'Pagado': 0.0, 'Pasivo': 116448568.66},
+    '512': {'Devengado': 99000324.91, 'Pagado': 75910780.5, 'Pasivo': 23089544.41},
+    '513': {'Devengado': 97805040.54, 'Pagado': 90965807.22, 'Pasivo': 6839233.32},
+    '700': {'Devengado': 197056.81, 'Pagado': 0.0, 'Pasivo': 197056.81},
+    'B00': {'Devengado': 846964013.44, 'Pagado': 614280745.46, 'Pasivo': 232683267.98},
+    'C00': {'Devengado': 8725856.15, 'Pagado': 7682264.34, 'Pasivo': 1043591.81},
+    'D00': {'Devengado': 10091647.4, 'Pagado': 7632264.62, 'Pasivo': 2459382.75},
+    'I00': {'Devengado': 187779979.69, 'Pagado': 73029680.67, 'Pasivo': 117868508.09},
+    'I6L': {'Devengado': 6620820.28, 'Pagado': 6493147.92, 'Pasivo': 127672.36},
+    'I9H': {'Devengado': 2457194.35, 'Pagado': 918957.32, 'Pasivo': 1538237.03},
+    'IZC': {'Devengado': 75004404.5, 'Pagado': 35333363.92, 'Pasivo': 39671040.58},
+    'RJL': {'Devengado': 96114935.73, 'Pagado': 82197460.6, 'Pasivo': 13917475.13},
+}
+
+
+def obtener_pasivos_ur(ur_codigo, usar_2026=True):
+    """
+    Obtiene los datos de pasivos para una UR específica,
+    aplicando las reglas de fusión de URs para 2026.
+    
+    Args:
+        ur_codigo: Código de la UR (puede ser el código original o el mapeado)
+        usar_2026: Si es True, aplica las fusiones de URs 2026
+    
+    Returns:
+        dict con Devengado, Pagado, Pasivo
+    """
+    ur = str(ur_codigo).strip()
+    
+    # Lista de URs originales que deben sumarse para esta UR final
+    urs_a_sumar = [ur]
+    
+    if usar_2026:
+        # Buscar todas las URs que se fusionan en esta UR destino
+        for ur_origen, ur_destino in FUSION_URS_2026.items():
+            if ur_destino == ur:
+                urs_a_sumar.append(ur_origen)
+        
+        # También buscar en el mapeo base (códigos numéricos → URs)
+        for ur_origen, ur_destino in MAPEO_UR_2025.items():
+            ur_destino_str = str(ur_destino)
+            # Si el destino es directamente esta UR
+            if ur_destino_str == ur:
+                urs_a_sumar.append(str(ur_origen))
+            # O si el destino se fusiona en esta UR
+            elif ur_destino_str in FUSION_URS_2026 and FUSION_URS_2026[ur_destino_str] == ur:
+                urs_a_sumar.append(str(ur_origen))
+    
+    # Sumar pasivos de todas las URs relacionadas
+    total_devengado = 0.0
+    total_pagado = 0.0
+    total_pasivo = 0.0
+    
+    for ur_buscar in set(urs_a_sumar):
+        if ur_buscar in PASIVOS_2026:
+            datos = PASIVOS_2026[ur_buscar]
+            total_devengado += datos['Devengado']
+            total_pagado += datos['Pagado']
+            total_pasivo += datos['Pasivo']
+    
+    return {
+        'Devengado': round(total_devengado, 2),
+        'Pagado': round(total_pagado, 2),
+        'Pasivo': round(total_pasivo, 2),
+    }
