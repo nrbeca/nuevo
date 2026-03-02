@@ -52,7 +52,7 @@ def generar_excel_sicop(resultados):
     fill_header = PatternFill(start_color='9B2247', end_color='9B2247', fill_type='solid')  # Vino
     fill_total = PatternFill(start_color='E6D194', end_color='E6D194', fill_type='solid')   # Beige
     fill_subtotal = PatternFill(start_color='002F2A', end_color='002F2A', fill_type='solid') # Verde
-    fill_gray = PatternFill(start_color='98989A', end_color='98989A', fill_type='solid')    # Gris
+    fill_gray = PatternFill(start_color='D9D9D6', end_color='D9D9D6', fill_type='solid')    # Gris
     fill_white = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
     
     border_dotted = Border(
