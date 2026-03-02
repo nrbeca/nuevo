@@ -32,7 +32,6 @@ COLOR_BEIGE = '#E6D194'
 COLOR_GRIS = '#C4BFB6'  # Gris claro para tablas
 COLOR_GRIS_EXCEL = '#D9D9D6'  # Gris original para Excel
 COLOR_VERDE = '#002F2A'
-
 # Configuracion
 st.set_page_config(page_title="SADER - Reportes", page_icon="", layout="wide", initial_sidebar_state="expanded")
 
@@ -66,14 +65,16 @@ def format_currency_millions(value):
     return f"${value/1_000_000:,.2f} M"
 
 def create_kpi_card(label, value, subtitle="", bg_color=None):
-    # Todos los KPIs: fondo blanco, borde vino, texto negro
     return f'<div style="background:white;border-radius:12px;padding:1rem;text-align:center;border:2px solid #9B2247;box-shadow:0 2px 8px rgba(0,0,0,0.08);"><div style="font-size:0.75rem;color:#333;text-transform:uppercase;">{label}</div><div style="font-size:1.3rem;font-weight:700;color:#9B2247;">{value}</div><div style="font-size:0.7rem;color:#666;">{subtitle}</div></div>'
 
 # Sidebar
 with st.sidebar:
     st.markdown('<div style="text-align:center;padding:1rem;color:white;font-weight:bold;font-size:1.5rem;">SADER</div>', unsafe_allow_html=True)
     st.markdown("### Tipo de Reporte")
-    reporte_tipo = st.radio("Selecciona:", ["MAP - Cuadro de presupuesto", "SICOP - Estado del Ejercicio"], label_visibility="collapsed")
+    reporte_tipo = st.radio("Selecciona:", [
+        "MAP - Cuadro de presupuesto", 
+        "SICOP - Estado del Ejercicio"
+    ], label_visibility="collapsed")
 
 # Header
 st.markdown('<div class="main-header"><h1>Sistema de Reportes Presupuestarios</h1><p>Secretaria de Agricultura y Desarrollo Rural</p></div>', unsafe_allow_html=True)
@@ -113,7 +114,7 @@ if uploaded_file is not None:
         
         st.markdown("---")
         
-        # ====================================================================
+     # ====================================================================
         # MAP
         # ====================================================================
         if es_map:
@@ -288,7 +289,6 @@ if uploaded_file is not None:
                     fig_bar.add_trace(go.Bar(name='Disponible', x=df_cat['Categoria'], y=df_cat['Disponible'], marker_color=COLOR_AZUL))
                     fig_bar.update_layout(barmode='stack', xaxis_tickangle=-45)
                     st.plotly_chart(fig_bar, use_container_width=True, key="bar_map_cat")
-        
         # ====================================================================
         # SICOP
         # ====================================================================
