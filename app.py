@@ -203,7 +203,7 @@ def mostrar_estado_datos():
 # ============================================================================
 
 with st.sidebar:
-    st.markdown('<div style="text-align:center;padding:1rem;color:white;font-weight:bold;font-size:1.5rem;">📊 SADER</div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;padding:1rem;color:white;font-weight:bold;font-size:1.5rem;"> SADER</div>', unsafe_allow_html=True)
     
     st.markdown("### Navegación")
     pagina = st.radio(
