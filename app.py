@@ -10,27 +10,19 @@ import plotly.graph_objects as go
 from datetime import date
 import io
 
-from config import (
-    MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
-    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD
-)
+from config import MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, get_config_by_year
 from map_processor import procesar_map
 from sicop_processor import procesar_sicop
 from excel_map import generar_excel_map
 from excel_sicop import generar_excel_sicop
-from austeridad_processor import (
-    procesar_sicop_austeridad,
-    generar_dashboard_austeridad_desde_sicop, obtener_urs_disponibles_sicop
-)
-from excel_austeridad import generar_excel_austeridad
 
 # Colores
 COLOR_AZUL = '#4472C4'
 COLOR_NARANJA = '#ED7D31'
 COLOR_VINO = '#9B2247'
 COLOR_BEIGE = '#E6D194'
-COLOR_GRIS = '#C4BFB6'
-COLOR_GRIS_EXCEL = '#98989A'
+COLOR_GRIS = '#C4BFB6'  # Gris claro para tablas
+COLOR_GRIS_EXCEL = '#D9D9D6'  # Gris original para Excel
 COLOR_VERDE = '#002F2A'
 
 # Configuracion
@@ -66,16 +58,14 @@ def format_currency_millions(value):
     return f"${value/1_000_000:,.2f} M"
 
 def create_kpi_card(label, value, subtitle="", bg_color=None):
+    # Todos los KPIs: fondo blanco, borde vino, texto negro
     return f'<div style="background:white;border-radius:12px;padding:1rem;text-align:center;border:2px solid #9B2247;box-shadow:0 2px 8px rgba(0,0,0,0.08);"><div style="font-size:0.75rem;color:#333;text-transform:uppercase;">{label}</div><div style="font-size:1.3rem;font-weight:700;color:#9B2247;">{value}</div><div style="font-size:0.7rem;color:#666;">{subtitle}</div></div>'
 
 # Sidebar
 with st.sidebar:
     st.markdown('<div style="text-align:center;padding:1rem;color:white;font-weight:bold;font-size:1.5rem;">SADER</div>', unsafe_allow_html=True)
     st.markdown("### Tipo de Reporte")
-    reporte_tipo = st.radio("Selecciona:", [
-        "MAP - Cuadro de presupuesto", 
-        "SICOP - Estado del Ejercicio"
-    ], label_visibility="collapsed")
+    reporte_tipo = st.radio("Selecciona:", ["MAP - Cuadro de presupuesto", "SICOP - Estado del Ejercicio"], label_visibility="collapsed")
 
 # Header
 st.markdown('<div class="main-header"><h1>Sistema de Reportes Presupuestarios</h1><p>Secretaria de Agricultura y Desarrollo Rural</p></div>', unsafe_allow_html=True)
@@ -140,110 +130,144 @@ if uploaded_file is not None:
             with tab1:
                 categorias = resultados['categorias']
                 cat_data = []
-                for ck, cn in [('servicios_personales', 'Servicios Personales'), ('gasto_corriente', 'Gasto Corriente'), ('subsidios', 'Subsidios'), ('otros_programas', 'Otros Programas'), ('bienes_muebles', 'Bienes Muebles')]:
-                    c = categorias.get(ck, {})
-                    disp = c.get('ModificadoPeriodoNeto', 0) - c.get('Ejercido', 0)
-                    cat_data.append({'Categoria': cn, 'Original': c.get('Original', 0), 'Mod. Anual': c.get('ModificadoAnualNeto', 0), 'Mod. Periodo': c.get('ModificadoPeriodoNeto', 0), 'Ejercido': c.get('Ejercido', 0), 'Disponible': disp})
+                for cat_key, cat_name in [('servicios_personales', 'Servicios Personales'), ('gasto_corriente', 'Gasto Corriente'), ('subsidios', 'Subsidios'), ('otros_programas', 'Otros')]:
+                    if cat_key in categorias:
+                        d = categorias[cat_key]
+                        disp = d['ModificadoPeriodoNeto'] - d['Ejercido']
+                        pct = d['Ejercido'] / d['ModificadoPeriodoNeto'] * 100 if d['ModificadoPeriodoNeto'] > 0 else 0
+                        cat_data.append({'Categoria': cat_name, 'Original': d['Original'], 'Mod. Anual': d['ModificadoAnualNeto'], 'Mod. Periodo': d['ModificadoPeriodoNeto'], 'Ejercido': d['Ejercido'], 'Disponible': disp, '% Avance': pct})
                 df_cat = pd.DataFrame(cat_data)
-                st.dataframe(df_cat.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}', 'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}'}), use_container_width=True, hide_index=True)
-                
-                # Programas específicos
-                st.markdown("#### Programas Específicos")
-                prog_data = []
-                for pk, pv in resultados.get('programas', {}).items():
-                    prog_nombre = config['programas_nombres'].get(pk, pk)
-                    prog_data.append({'Programa': pk, 'Nombre': prog_nombre[:50], 'Original': pv.get('Original', 0), 'Mod. Anual': pv.get('ModificadoAnualNeto', 0), 'Ejercido': pv.get('Ejercido', 0)})
-                if prog_data:
-                    df_prog = pd.DataFrame(prog_data)
-                    st.dataframe(df_prog.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}', 'Ejercido': '${:,.2f}'}), use_container_width=True, hide_index=True)
+                st.dataframe(df_cat.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}', 'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}', '% Avance': '{:.2f}%'}), use_container_width=True, hide_index=True)
             
+            # ================================================================
+            # TAB 2: DASHBOARD PRESUPUESTO (desde MAP)
+            # ================================================================
             with tab2:
-                st.markdown("### Dashboard Presupuesto por UR")
-                
                 resultados_ur = resultados.get('resultados_por_ur', {})
-                if resultados_ur:
-                    urs_lista = sorted(resultados_ur.keys(), key=lambda x: (not x.isdigit(), int(x) if x.isdigit() else x))
+                if not resultados_ur:
+                    st.warning("No hay datos por UR disponibles")
+                else:
+                    urs_disponibles = sorted(resultados_ur.keys())
+                    denominaciones = config.get('denominaciones', {})
+                    urs_con_nombre = [f"{ur} - {denominaciones.get(ur, ur)[:40]}" for ur in urs_disponibles]
                     
-                    opciones_ur = []
-                    for ur in urs_lista:
-                        nombre = UR_NOMBRES.get(ur, '')
-                        if nombre:
-                            opciones_ur.append(f"{ur} - {nombre}")
+                    ur_seleccionada = st.selectbox("Selecciona una Unidad Responsable:", options=urs_con_nombre, index=0, key="ur_map")
+                    ur_codigo = ur_seleccionada.split(" - ")[0]
+                    datos_ur = resultados_ur[ur_codigo]
+                    
+                    # Título con fecha
+                    from datetime import date
+                    hoy = date.today()
+                    meses_esp = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+                    fecha_titulo = f"{hoy.day} de {meses_esp[hoy.month - 1]} de {hoy.year}"
+                    st.markdown(f"### Estado del ejercicio del 1 de enero al {fecha_titulo}")
+                    st.markdown(f"**{ur_codigo}.- {denominaciones.get(ur_codigo, ur_codigo)}**")
+                    
+                    # KPIs Fila 1
+                    c1, c2, c3, c4 = st.columns(4)
+                    with c1:
+                        st.markdown(create_kpi_card("Original", format_currency(datos_ur['Original'])), unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(create_kpi_card("Modificado Anual", format_currency(datos_ur['Modificado_anual']), "", COLOR_VINO), unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(create_kpi_card("Modificado Periodo", format_currency(datos_ur['Modificado_periodo']), "", COLOR_BEIGE), unsafe_allow_html=True)
+                    with c4:
+                        st.markdown(create_kpi_card("Ejercido", format_currency(datos_ur['Ejercido']), "", COLOR_NARANJA), unsafe_allow_html=True)
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    # KPIs Fila 2
+                    c5, c6, c7, c8 = st.columns(4)
+                    with c5:
+                        st.markdown(create_kpi_card("Disponible Anual", format_currency(datos_ur['Disponible_anual']), "", COLOR_AZUL), unsafe_allow_html=True)
+                    with c6:
+                        st.markdown(create_kpi_card("Disponible Periodo", format_currency(datos_ur['Disponible_periodo']), "", COLOR_AZUL), unsafe_allow_html=True)
+                    with c7:
+                        cong_a = datos_ur.get('Congelado_anual', 0)
+                        st.markdown(create_kpi_card("Congelado Anual", format_currency(cong_a) if cong_a else "-", "", COLOR_GRIS), unsafe_allow_html=True)
+                    with c8:
+                        cong_p = datos_ur.get('Congelado_periodo', 0)
+                        st.markdown(create_kpi_card("Congelado Periodo", format_currency(cong_p) if cong_p else "-", "", COLOR_GRIS), unsafe_allow_html=True)
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    # Layout: Graficas + Pasivos | Tablas
+                    col_izq, col_der = st.columns([1, 1])
+                    
+                    with col_izq:
+                        # Graficas de avance
+                        cg1, cg2 = st.columns(2)
+                        pct_anual = datos_ur['Pct_avance_anual'] * 100
+                        pct_periodo = datos_ur['Pct_avance_periodo'] * 100
+                        
+                        with cg1:
+                            st.markdown("**Avance ejercicio anual**")
+                            fig1 = go.Figure(go.Pie(values=[datos_ur['Ejercido'], max(0, datos_ur['Disponible_anual'])], labels=['Ejercido', 'Disponible'], hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                            fig1.add_annotation(text=f"{pct_anual:.2f}%", x=0.5, y=0.5, font_size=18, font_color=COLOR_VINO, showarrow=False)
+                            fig1.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2), margin=dict(t=10, b=30, l=10, r=10), height=200)
+                            st.plotly_chart(fig1, use_container_width=True, key="fig_map_anual")
+                        
+                        with cg2:
+                            st.markdown("**Avance ejercicio periodo**")
+                            fig2 = go.Figure(go.Pie(values=[datos_ur['Ejercido'], max(0, datos_ur['Disponible_periodo'])], labels=['Ejercido', 'Disponible'], hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                            fig2.add_annotation(text=f"{pct_periodo:.2f}%", x=0.5, y=0.5, font_size=18, font_color=COLOR_VINO, showarrow=False)
+                            fig2.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2), margin=dict(t=10, b=30, l=10, r=10), height=200)
+                            st.plotly_chart(fig2, use_container_width=True, key="fig_map_periodo")
+                        
+                        # Seccion Pasivos
+                        st.markdown("#### Pasivos con cargo al presupuesto")
+                        cp1, cp2 = st.columns(2)
+                        with cp1:
+                            st.markdown('<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;"><div style="font-size:0.8rem;color:#666;">Pasivos reportados a la SHCP</div><div style="font-size:1.2rem;font-weight:bold;"></div></div>', unsafe_allow_html=True)
+                        with cp2:
+                            st.markdown('<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;"><div style="font-size:0.8rem;color:#666;">Pasivos pagados en COP 10</div><div style="font-size:1.2rem;font-weight:bold;"></div></div>', unsafe_allow_html=True)
+                        
+                        st.markdown("**Avance de pago de pasivos**")
+                        fig3 = go.Figure(go.Pie(values=[1], labels=['Sin pasivos'], hole=0.6, marker_colors=['#e0e0e0'], textinfo='none'))
+                        fig3.add_annotation(text="-", x=0.5, y=0.5, font_size=16, font_color=COLOR_VINO, showarrow=False)
+                        fig3.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2), margin=dict(t=10, b=30, l=10, r=10), height=180)
+                        st.plotly_chart(fig3, use_container_width=True, key="fig_map_pasivos")
+                    
+                    with col_der:
+                        # Tabla por capitulo
+                        st.markdown("#### Estado del ejercicio por capitulo de gasto")
+                        caps_ur = resultados.get('capitulos_por_ur', {}).get(ur_codigo, {})
+                        
+                        cap_data = []
+                        tot_o, tot_ma, tot_mp, tot_e = 0, 0, 0, 0
+                        for cap_num, cap_name in [('2', 'Materiales y suministros'), ('3', 'Servicios generales'), ('4', 'Transferencias')]:
+                            c = caps_ur.get(cap_num, {})
+                            o, ma, mp, e = c.get('Original', 0), c.get('Modificado_anual', 0), c.get('Modificado_periodo', 0), c.get('Ejercido', 0)
+                            d = mp - e
+                            p = e / mp * 100 if mp > 0 else 0
+                            tot_o += o; tot_ma += ma; tot_mp += mp; tot_e += e
+                            cap_data.append({'Capitulo': f'{cap_num}000', 'Denominacion': cap_name, 'Original': o, 'Mod. Anual': ma, 'Mod. Periodo': mp, 'Ejercido': e, 'Disponible': d, '% Avance': p})
+                        
+                        tot_d = tot_mp - tot_e
+                        tot_p = tot_e / tot_mp * 100 if tot_mp > 0 else 0
+                        cap_data.insert(0, {'Capitulo': 'Total', 'Denominacion': '', 'Original': tot_o, 'Mod. Anual': tot_ma, 'Mod. Periodo': tot_mp, 'Ejercido': tot_e, 'Disponible': tot_d, '% Avance': tot_p})
+                        
+                        df_cap = pd.DataFrame(cap_data)
+                        st.dataframe(df_cap.style.format({
+                            'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}', 'Mod. Periodo': '${:,.2f}', 
+                            'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}', '% Avance': '{:.2f}%'
+                        }), use_container_width=True, hide_index=True)
+                        
+                        # Top 5 partidas
+                        st.markdown("#### Cinco partidas con el mayor monto de disponible al periodo")
+                        partidas_ur = resultados.get('partidas_por_ur', {}).get(ur_codigo, [])
+                        if partidas_ur:
+                            from config import obtener_denominacion_partida
+                            total_disp = datos_ur['Disponible_periodo']
+                            part_data = []
+                            for p in partidas_ur[:5]:
+                                pct_r = p['Disponible'] / total_disp * 100 if total_disp > 0 else 0
+                                denom_partida = obtener_denominacion_partida(p['Partida'])
+                                part_data.append({'Partida': p['Partida'], 'Denominación': denom_partida, 'Disponible': p['Disponible'], '% del Total': pct_r})
+                            df_part = pd.DataFrame(part_data)
+                            st.dataframe(df_part.style.format({'Disponible': '${:,.2f}', '% del Total': '{:.2f}%'}), use_container_width=True, hide_index=True)
                         else:
-                            opciones_ur.append(ur)
-                    
-                    ur_sel = st.selectbox("Selecciona UR:", opciones_ur, key="ur_map")
-                    ur_codigo = ur_sel.split(" - ")[0] if " - " in ur_sel else ur_sel
-                    ur_nombre = UR_NOMBRES.get(ur_codigo, ur_codigo)
-                    
-                    datos_ur = resultados_ur.get(ur_codigo, {})
-                    
-                    if datos_ur:
-                        # Título
-                        ultimo_habil = obtener_ultimo_dia_habil(date.today())
-                        mes_nombre = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][ultimo_habil.month-1]
-                        st.markdown(f"#### Estado del ejercicio del 1 de enero al {ultimo_habil.day} de {mes_nombre} de {metadata['año']}")
-                        st.markdown(f"**{ur_codigo}.- {ur_nombre}**")
-                        
-                        # Layout
-                        col_izq, col_der = st.columns([1, 2])
-                        
-                        with col_izq:
-                            # KPIs
-                            st.markdown(create_kpi_card("Modificado al periodo", format_currency(datos_ur['Modificado_periodo'])), unsafe_allow_html=True)
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            st.markdown(create_kpi_card("Ejercido", format_currency(datos_ur['Ejercido'])), unsafe_allow_html=True)
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            st.markdown(create_kpi_card("Disponible", format_currency(datos_ur['Disponible_periodo'])), unsafe_allow_html=True)
-                            
-                            # Gráfica de avance
-                            st.markdown("**Avance del ejercicio**")
-                            pct = datos_ur['Pct_avance_periodo'] * 100 if datos_ur.get('Pct_avance_periodo') else 0
-                            fig = go.Figure(go.Pie(values=[pct, 100-pct], labels=['Ejercido', 'Disponible'], hole=0.7, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
-                            fig.add_annotation(text=f"{pct:.1f}%", x=0.5, y=0.5, font_size=20, font_color=COLOR_VINO, showarrow=False)
-                            fig.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2), margin=dict(t=10, b=30, l=10, r=10), height=200)
-                            st.plotly_chart(fig, use_container_width=True, key="fig_map_avance")
-                        
-                        with col_der:
-                            # Tabla por capitulo
-                            st.markdown("#### Estado del ejercicio por capitulo de gasto")
-                            caps_ur = resultados.get('capitulos_por_ur', {}).get(ur_codigo, {})
-                            
-                            cap_data = []
-                            tot_o, tot_ma, tot_mp, tot_e = 0, 0, 0, 0
-                            for cap_num, cap_name in [('2', 'Materiales y suministros'), ('3', 'Servicios generales'), ('4', 'Transferencias')]:
-                                c = caps_ur.get(cap_num, {})
-                                o, ma, mp, e = c.get('Original', 0), c.get('Modificado_anual', 0), c.get('Modificado_periodo', 0), c.get('Ejercido', 0)
-                                d = mp - e
-                                p = e / mp * 100 if mp > 0 else 0
-                                tot_o += o; tot_ma += ma; tot_mp += mp; tot_e += e
-                                cap_data.append({'Capitulo': f'{cap_num}000', 'Denominacion': cap_name, 'Original': o, 'Mod. Anual': ma, 'Mod. Periodo': mp, 'Ejercido': e, 'Disponible': d, '% Avance': p})
-                            
-                            tot_d = tot_mp - tot_e
-                            tot_p = tot_e / tot_mp * 100 if tot_mp > 0 else 0
-                            cap_data.insert(0, {'Capitulo': 'Total', 'Denominacion': '', 'Original': tot_o, 'Mod. Anual': tot_ma, 'Mod. Periodo': tot_mp, 'Ejercido': tot_e, 'Disponible': tot_d, '% Avance': tot_p})
-                            
-                            df_cap = pd.DataFrame(cap_data)
-                            st.dataframe(df_cap.style.format({
-                                'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}', 'Mod. Periodo': '${:,.2f}', 
-                                'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}', '% Avance': '{:.2f}%'
-                            }), use_container_width=True, hide_index=True)
-                            
-                            # Top 5 partidas
-                            st.markdown("#### Cinco partidas con el mayor monto de disponible al periodo")
-                            partidas_ur = resultados.get('partidas_por_ur', {}).get(ur_codigo, [])
-                            if partidas_ur:
-                                from config import obtener_denominacion_partida
-                                total_disp = datos_ur['Disponible_periodo']
-                                part_data = []
-                                for p in partidas_ur[:5]:
-                                    pct_r = p['Disponible'] / total_disp * 100 if total_disp > 0 else 0
-                                    denom_partida = obtener_denominacion_partida(p['Partida'])
-                                    part_data.append({'Partida': p['Partida'], 'Denominación': denom_partida, 'Disponible': p['Disponible'], '% del Total': pct_r})
-                                df_part = pd.DataFrame(part_data)
-                                st.dataframe(df_part.style.format({'Disponible': '${:,.2f}', '% del Total': '{:.2f}%'}), use_container_width=True, hide_index=True)
-                            else:
-                                st.info("No hay partidas con disponible")
+                            st.info("No hay partidas con disponible")
             
             with tab3:
                 cg1, cg2 = st.columns(2)
