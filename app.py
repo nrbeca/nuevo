@@ -10,11 +10,19 @@ import plotly.graph_objects as go
 from datetime import date
 import io
 
-from config import MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, get_config_by_year
+from config import (
+    MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
+    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD
+)
 from map_processor import procesar_map
 from sicop_processor import procesar_sicop
 from excel_map import generar_excel_map
 from excel_sicop import generar_excel_sicop
+from austeridad_processor import (
+    procesar_sicop_austeridad,
+    generar_dashboard_austeridad_desde_sicop, obtener_urs_disponibles_sicop
+)
+from excel_austeridad import generar_excel_austeridad
 
 # Colores
 COLOR_AZUL = '#4472C4'
