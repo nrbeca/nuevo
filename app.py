@@ -16,9 +16,16 @@ import pickle
 
 from config import (
     MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
-    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
-    PASIVOS_2026, obtener_pasivos_ur
+    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD
 )
+
+# Importar PASIVOS si existen (opcional)
+try:
+    from config import PASIVOS_2026, obtener_pasivos_ur
+except ImportError:
+    PASIVOS_2026 = {}
+    def obtener_pasivos_ur(ur_codigo, usar_2026=True):
+        return {'Devengado': 0, 'Pagado': 0, 'Pasivo': 0}
 from map_processor import procesar_map
 from sicop_processor import procesar_sicop
 from excel_map import generar_excel_map
@@ -210,14 +217,17 @@ with st.sidebar:
     pagina = st.radio(
         "Selecciona vista:",
         [" Inicio", " Cargar Reportes", " Ver MAP", " Ver SICOP"],
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        format_func=lambda x: x
     )
     
-    # Subtítulos descriptivos según la opción seleccionada
-    if pagina == " Ver MAP":
-        st.markdown('<p style="font-size:0.75rem;color:#E6D194;margin-top:-10px;margin-left:25px;font-style:italic;">Cuadro de Presupuesto y Dashboard</p>', unsafe_allow_html=True)
-    elif pagina == " Ver SICOP":
-        st.markdown('<p style="font-size:0.75rem;color:#E6D194;margin-top:-10px;margin-left:25px;font-style:italic;">Estado del Ejercicio y Dashboard Austeridad</p>', unsafe_allow_html=True)
+    # Mostrar subtítulos descriptivos SIEMPRE debajo de las opciones
+    st.markdown("""
+    <div style="font-size:0.7rem;color:#E6D194;margin-top:5px;margin-left:10px;line-height:1.8;">
+        <p style="margin:0;"><b>Ver MAP:</b> Cuadro de Presupuesto y Dashboard</p>
+        <p style="margin:0;"><b>Ver SICOP:</b> Estado del Ejercicio y Dashboard Austeridad</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     st.markdown("### Estado de Datos")
@@ -388,73 +398,141 @@ elif pagina == " Ver MAP":
     tab1, tab2 = st.tabs([" Cuadro de Presupuesto", " Dashboard Presupuesto"])
     
     with tab1:
-        st.markdown("#### Cuadro de Presupuesto por Categoría de Gasto")
+        st.markdown("#### Cuadro de Presupuesto")
         
+        # Construir tabla completa como en el Excel
+        cuadro_data = []
         categorias = resultados['categorias']
-        cat_data = []
+        programas = resultados.get('programas', {})
+        config = resultados['metadata']['config']
+        programas_especificos = config.get('programas_especificos', [])
+        programas_nombres = config.get('programas_nombres', {})
+        nombres_especiales = config.get('nombres_especiales', {})
         
-        # Totales
-        total_original = 0
-        total_mod_anual = 0
-        total_mod_periodo = 0
-        total_ejercido = 0
-        total_disponible = 0
-        
-        for cat_key, cat_name in [('servicios_personales', 'Cap. 1000 - Servicios Personales'), 
-                                   ('gasto_corriente', 'Cap. 2000-3000 - Gasto Corriente'), 
-                                   ('subsidios', 'Cap. 4000 - Subsidios'), 
-                                   ('otros_programas', 'Otros Programas')]:
-            if cat_key in categorias:
-                d = categorias[cat_key]
-                disp = d['ModificadoPeriodoNeto'] - d['Ejercido']
-                pct = d['Ejercido'] / d['ModificadoPeriodoNeto'] * 100 if d['ModificadoPeriodoNeto'] > 0 else 0
-                cat_data.append({
-                    'Concepto': cat_name, 
-                    'PEF Original': d['Original'], 
-                    'Modificado Anual': d['ModificadoAnualNeto'], 
-                    'Modificado Periodo': d['ModificadoPeriodoNeto'], 
-                    'Ejercido': d['Ejercido'], 
-                    'Disponible': disp, 
-                    '% Avance': pct
-                })
-                total_original += d['Original']
-                total_mod_anual += d['ModificadoAnualNeto']
-                total_mod_periodo += d['ModificadoPeriodoNeto']
-                total_ejercido += d['Ejercido']
-                total_disponible += disp
-        
-        # Agregar fila de totales
-        pct_total = total_ejercido / total_mod_periodo * 100 if total_mod_periodo > 0 else 0
-        cat_data.append({
-            'Concepto': 'TOTAL RAMO 08', 
-            'PEF Original': total_original, 
-            'Modificado Anual': total_mod_anual, 
-            'Modificado Periodo': total_mod_periodo, 
-            'Ejercido': total_ejercido, 
-            'Disponible': total_disponible, 
-            '% Avance': pct_total
+        # Fila Totales
+        cuadro_data.append({
+            'Concepto': 'Totales:',
+            'Original': totales['Original'],
+            'Mod. Anual': totales['ModificadoAnualNeto'],
+            'Mod. Periodo': totales['ModificadoPeriodoNeto'],
+            'Ejercido': totales['Ejercido'],
+            'Disponible': totales['ModificadoPeriodoNeto'] - totales['Ejercido'],
+            '% Avance': totales['Ejercido'] / totales['ModificadoPeriodoNeto'] * 100 if totales['ModificadoPeriodoNeto'] > 0 else 0,
+            '_tipo': 'total'
         })
         
-        df_cat = pd.DataFrame(cat_data)
+        # Servicios personales
+        cat_sp = categorias.get('servicios_personales', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+        cuadro_data.append({
+            'Concepto': 'Servicios personales',
+            'Original': cat_sp['Original'],
+            'Mod. Anual': cat_sp['ModificadoAnualNeto'],
+            'Mod. Periodo': cat_sp['ModificadoPeriodoNeto'],
+            'Ejercido': cat_sp['Ejercido'],
+            'Disponible': cat_sp['ModificadoPeriodoNeto'] - cat_sp['Ejercido'],
+            '% Avance': cat_sp['Ejercido'] / cat_sp['ModificadoPeriodoNeto'] * 100 if cat_sp['ModificadoPeriodoNeto'] > 0 else 0,
+            '_tipo': 'subtotal'
+        })
         
-        # Función para resaltar la fila de totales
-        def highlight_total_map(row):
-            if row['Concepto'] == 'TOTAL RAMO 08':
+        # Gasto corriente
+        cat_gc = categorias.get('gasto_corriente', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+        cuadro_data.append({
+            'Concepto': 'Gasto corriente 1/',
+            'Original': cat_gc['Original'],
+            'Mod. Anual': cat_gc['ModificadoAnualNeto'],
+            'Mod. Periodo': cat_gc['ModificadoPeriodoNeto'],
+            'Ejercido': cat_gc['Ejercido'],
+            'Disponible': cat_gc['ModificadoPeriodoNeto'] - cat_gc['Ejercido'],
+            '% Avance': cat_gc['Ejercido'] / cat_gc['ModificadoPeriodoNeto'] * 100 if cat_gc['ModificadoPeriodoNeto'] > 0 else 0,
+            '_tipo': 'subtotal'
+        })
+        
+        # Subtotal subsidios
+        subtotal_subs = {
+            'Original': sum(programas.get(p, {}).get('Original', 0) for p in programas_especificos),
+            'ModificadoAnualNeto': sum(programas.get(p, {}).get('ModificadoAnualNeto', 0) for p in programas_especificos),
+            'ModificadoPeriodoNeto': sum(programas.get(p, {}).get('ModificadoPeriodoNeto', 0) for p in programas_especificos),
+            'Ejercido': sum(programas.get(p, {}).get('Ejercido', 0) for p in programas_especificos),
+        }
+        cuadro_data.append({
+            'Concepto': 'Subsidios y Gastos asociados 2/',
+            'Original': subtotal_subs['Original'],
+            'Mod. Anual': subtotal_subs['ModificadoAnualNeto'],
+            'Mod. Periodo': subtotal_subs['ModificadoPeriodoNeto'],
+            'Ejercido': subtotal_subs['Ejercido'],
+            'Disponible': subtotal_subs['ModificadoPeriodoNeto'] - subtotal_subs['Ejercido'],
+            '% Avance': subtotal_subs['Ejercido'] / subtotal_subs['ModificadoPeriodoNeto'] * 100 if subtotal_subs['ModificadoPeriodoNeto'] > 0 else 0,
+            '_tipo': 'subtotal'
+        })
+        
+        # Programas específicos
+        for prog in programas_especificos:
+            if prog in programas:
+                nombre = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+                d = programas[prog]
+                cuadro_data.append({
+                    'Concepto': nombre,
+                    'Original': d.get('Original', 0),
+                    'Mod. Anual': d.get('ModificadoAnualNeto', 0),
+                    'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
+                    'Ejercido': d.get('Ejercido', 0),
+                    'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
+                    '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
+                    '_tipo': 'programa'
+                })
+        
+        # Otros programas
+        cat_otros = categorias.get('otros_programas', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+        cuadro_data.append({
+            'Concepto': 'Otros programas de subsidios y Gastos asociados 6/',
+            'Original': cat_otros['Original'],
+            'Mod. Anual': cat_otros['ModificadoAnualNeto'],
+            'Mod. Periodo': cat_otros['ModificadoPeriodoNeto'],
+            'Ejercido': cat_otros['Ejercido'],
+            'Disponible': cat_otros['ModificadoPeriodoNeto'] - cat_otros['Ejercido'],
+            '% Avance': cat_otros['Ejercido'] / cat_otros['ModificadoPeriodoNeto'] * 100 if cat_otros['ModificadoPeriodoNeto'] > 0 else 0,
+            '_tipo': 'programa'
+        })
+        
+        # Bienes muebles
+        cat_bm = categorias.get('bienes_muebles', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+        cuadro_data.append({
+            'Concepto': 'Bienes muebles, inmuebles e intangibles',
+            'Original': cat_bm['Original'],
+            'Mod. Anual': cat_bm['ModificadoAnualNeto'],
+            'Mod. Periodo': cat_bm['ModificadoPeriodoNeto'],
+            'Ejercido': cat_bm['Ejercido'],
+            'Disponible': cat_bm['ModificadoPeriodoNeto'] - cat_bm['Ejercido'],
+            '% Avance': cat_bm['Ejercido'] / cat_bm['ModificadoPeriodoNeto'] * 100 if cat_bm['ModificadoPeriodoNeto'] > 0 else 0,
+            '_tipo': 'subtotal'
+        })
+        
+        df_cuadro = pd.DataFrame(cuadro_data)
+        
+        # Función para estilo de filas
+        def estilo_cuadro_map(row):
+            tipo = row.get('_tipo', '')
+            if tipo == 'total':
                 return ['background-color: #E6D194; font-weight: bold'] * len(row)
+            elif tipo == 'subtotal':
+                return ['background-color: #D9D9D6'] * len(row)
             return [''] * len(row)
         
+        # Quitar columna auxiliar para mostrar
+        df_mostrar = df_cuadro.drop(columns=['_tipo'])
+        
         st.dataframe(
-            df_cat.style.format({
-                'PEF Original': '${:,.2f}', 
-                'Modificado Anual': '${:,.2f}', 
-                'Modificado Periodo': '${:,.2f}', 
-                'Ejercido': '${:,.2f}', 
-                'Disponible': '${:,.2f}', 
+            df_mostrar.style.format({
+                'Original': '${:,.2f}',
+                'Mod. Anual': '${:,.2f}',
+                'Mod. Periodo': '${:,.2f}',
+                'Ejercido': '${:,.2f}',
+                'Disponible': '${:,.2f}',
                 '% Avance': '{:.2f}%'
-            }).apply(highlight_total_map, axis=1), 
-            use_container_width=True, 
+            }).apply(lambda x: estilo_cuadro_map(df_cuadro.loc[x.name]), axis=1),
+            use_container_width=True,
             hide_index=True,
-            height=250
+            height=450
         )
     
     with tab2:
@@ -663,69 +741,104 @@ elif pagina == " Ver SICOP":
     tab1, tab2 = st.tabs([" Estado del Ejercicio", " Dashboard Austeridad"])
     
     with tab1:
-        st.markdown("#### Estado del Ejercicio por Sección")
+        st.markdown("#### Estado del Ejercicio por Unidad Responsable")
         
-        subtotales = resultados['subtotales']
-        seccion_data = []
+        # Construir tabla completa como en el Excel
+        resumen = resultados.get('resumen', {})
+        subtotales = resultados.get('subtotales', {})
+        config = resultados['metadata']['config']
+        denominaciones = config.get('denominaciones', {})
         
-        # Totales
-        total_original = 0
-        total_mod_anual = 0
-        total_mod_periodo = 0
-        total_ejercido = 0
-        total_disponible = 0
+        # Orden de secciones y URs
+        secciones_config = [
+            ('sector_central', 'Sector Central', config.get('sector_central', [])),
+            ('oficinas', 'Oficinas de Representación', config.get('oficinas', [])),
+            ('organos_desconcentrados', 'Órganos Desconcentrados', config.get('organos_desconcentrados', [])),
+            ('entidades_paraestatales', 'Entidades Paraestatales', config.get('entidades_paraestatales', []))
+        ]
         
-        for sk, sn in [('sector_central', 'Sector Central'), ('oficinas', 'Oficinas de Representación'), ('organos_desconcentrados', 'Órganos Desconcentrados'), ('entidades_paraestatales', 'Entidades Paraestatales')]:
-            if sk in subtotales:
-                d = subtotales[sk]
-                p = d['Pct_avance_periodo'] * 100 if d.get('Pct_avance_periodo') else 0
-                seccion_data.append({
-                    'Sección': sn, 
-                    'PEF Original': d['Original'], 
-                    'Modificado Anual': d['Modificado_anual'], 
-                    'Modificado Periodo': d['Modificado_periodo'], 
-                    'Ejercido': d['Ejercido_acumulado'], 
-                    'Disponible': d['Disponible_periodo'], 
-                    '% Avance': p
-                })
-                total_original += d['Original']
-                total_mod_anual += d['Modificado_anual']
-                total_mod_periodo += d['Modificado_periodo']
-                total_ejercido += d['Ejercido_acumulado']
-                total_disponible += d['Disponible_periodo']
+        ejercicio_data = []
         
-        # Agregar fila de totales
-        pct_total = total_ejercido / total_mod_periodo * 100 if total_mod_periodo > 0 else 0
-        seccion_data.append({
-            'Sección': 'TOTAL RAMO 08', 
-            'PEF Original': total_original, 
-            'Modificado Anual': total_mod_anual, 
-            'Modificado Periodo': total_mod_periodo, 
-            'Ejercido': total_ejercido, 
-            'Disponible': total_disponible, 
-            '% Avance': pct_total
+        # Fila Totales
+        ejercicio_data.append({
+            'UR': '',
+            'Denominación': 'Totales:',
+            'Original': totales['Original'],
+            'Mod. Anual': totales['Modificado_anual'],
+            'Mod. Periodo': totales['Modificado_periodo'],
+            'Ejercido': totales['Ejercido_acumulado'],
+            'Disp. Anual': totales['Modificado_anual'] - totales['Ejercido_acumulado'],
+            'Disp. Periodo': totales['Disponible_periodo'],
+            '% Av. Anual': (totales['Ejercido_acumulado'] / totales['Modificado_anual'] * 100) if totales['Modificado_anual'] > 0 else 0,
+            '% Av. Periodo': (totales['Pct_avance_periodo'] * 100) if totales.get('Pct_avance_periodo') else 0,
+            '_tipo': 'total'
         })
         
-        df_sec = pd.DataFrame(seccion_data)
+        # Por cada sección
+        for seccion_key, seccion_nombre, urs_lista in secciones_config:
+            # Subtotal de sección
+            if seccion_key in subtotales:
+                st_data = subtotales[seccion_key]
+                ejercicio_data.append({
+                    'UR': '',
+                    'Denominación': seccion_nombre,
+                    'Original': st_data['Original'],
+                    'Mod. Anual': st_data['Modificado_anual'],
+                    'Mod. Periodo': st_data['Modificado_periodo'],
+                    'Ejercido': st_data['Ejercido_acumulado'],
+                    'Disp. Anual': st_data['Modificado_anual'] - st_data['Ejercido_acumulado'],
+                    'Disp. Periodo': st_data['Disponible_periodo'],
+                    '% Av. Anual': (st_data['Ejercido_acumulado'] / st_data['Modificado_anual'] * 100) if st_data['Modificado_anual'] > 0 else 0,
+                    '% Av. Periodo': (st_data['Pct_avance_periodo'] * 100) if st_data.get('Pct_avance_periodo') else 0,
+                    '_tipo': 'subtotal'
+                })
+            
+            # URs de esta sección
+            for ur in urs_lista:
+                if ur in resumen:
+                    ur_data = resumen[ur]
+                    ejercicio_data.append({
+                        'UR': ur,
+                        'Denominación': denominaciones.get(ur, ur),
+                        'Original': ur_data.get('Original', 0),
+                        'Mod. Anual': ur_data.get('Modificado_anual', 0),
+                        'Mod. Periodo': ur_data.get('Modificado_periodo', 0),
+                        'Ejercido': ur_data.get('Ejercido_acumulado', 0),
+                        'Disp. Anual': ur_data.get('Modificado_anual', 0) - ur_data.get('Ejercido_acumulado', 0),
+                        'Disp. Periodo': ur_data.get('Disponible_periodo', 0),
+                        '% Av. Anual': (ur_data.get('Ejercido_acumulado', 0) / ur_data.get('Modificado_anual', 1) * 100) if ur_data.get('Modificado_anual', 0) > 0 else 0,
+                        '% Av. Periodo': (ur_data.get('Pct_avance_periodo', 0) * 100) if ur_data.get('Pct_avance_periodo') else 0,
+                        '_tipo': 'ur'
+                    })
         
-        # Función para resaltar la fila de totales
-        def highlight_total_sicop(row):
-            if row['Sección'] == 'TOTAL RAMO 08':
+        df_ejercicio = pd.DataFrame(ejercicio_data)
+        
+        # Función para estilo de filas
+        def estilo_estado_ejercicio(row):
+            tipo = row.get('_tipo', '')
+            if tipo == 'total':
                 return ['background-color: #E6D194; font-weight: bold'] * len(row)
+            elif tipo == 'subtotal':
+                return ['background-color: #002F2A; color: white; font-weight: bold'] * len(row)
             return [''] * len(row)
         
+        # Quitar columna auxiliar para mostrar
+        df_mostrar = df_ejercicio.drop(columns=['_tipo'])
+        
         st.dataframe(
-            df_sec.style.format({
-                'PEF Original': '${:,.2f}', 
-                'Modificado Anual': '${:,.2f}', 
-                'Modificado Periodo': '${:,.2f}', 
-                'Ejercido': '${:,.2f}', 
-                'Disponible': '${:,.2f}', 
-                '% Avance': '{:.2f}%'
-            }).apply(highlight_total_sicop, axis=1), 
-            use_container_width=True, 
+            df_mostrar.style.format({
+                'Original': '${:,.2f}',
+                'Mod. Anual': '${:,.2f}',
+                'Mod. Periodo': '${:,.2f}',
+                'Ejercido': '${:,.2f}',
+                'Disp. Anual': '${:,.2f}',
+                'Disp. Periodo': '${:,.2f}',
+                '% Av. Anual': '{:.2f}%',
+                '% Av. Periodo': '{:.2f}%'
+            }).apply(lambda x: estilo_estado_ejercicio(df_ejercicio.loc[x.name]), axis=1),
+            use_container_width=True,
             hide_index=True,
-            height=250
+            height=600
         )
     
     with tab2:
@@ -804,20 +917,31 @@ elif pagina == " Ver SICOP":
         
         # Función para colorear la columna Nota
         def color_nota(val):
-            if val == 'Solicitar dictamen antes de sobrepasar el monto ejercido en 2025.':
+            if pd.isna(val) or val == '':
+                return ''
+            if 'Solicitar dictamen' in str(val):
                 return 'background-color: #FFB6C1'  # Rosa
-            elif val == 'Monto ejercido real mayor al presupuesto ejercido en 2025.':
+            elif 'Monto ejercido real mayor' in str(val):
                 return 'background-color: #FFD699'  # Naranja claro
             return ''
         
+        # Aplicar estilos
+        styled_df = df_display.style.format({
+            f'Ejercido {año_anterior}': '${:,.2f}',
+            'Original': '${:,.2f}',
+            'Modificado': '${:,.2f}',
+            'Ejercido Real': '${:,.2f}',
+            'Avance Anual': lambda x: format_avance(x)
+        })
+        
+        # Aplicar color a la columna Nota (compatible con pandas nuevo y viejo)
+        try:
+            styled_df = styled_df.map(color_nota, subset=['Nota'])
+        except AttributeError:
+            styled_df = styled_df.applymap(color_nota, subset=['Nota'])
+        
         st.dataframe(
-            df_display.style.format({
-                f'Ejercido {año_anterior}': '${:,.2f}',
-                'Original': '${:,.2f}',
-                'Modificado': '${:,.2f}',
-                'Ejercido Real': '${:,.2f}',
-                'Avance Anual': lambda x: format_avance(x)
-            }).applymap(color_nota, subset=['Nota']),
+            styled_df,
             use_container_width=True,
             hide_index=True,
             height=500
