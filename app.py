@@ -215,17 +215,20 @@ with st.sidebar:
     
     st.markdown("### Navegación")
     
+    # Opciones del menú
+    opciones_menu = [" Inicio", " Cargar Reportes", " Ver MAP", " Ver SICOP"]
+    
     pagina = st.radio(
         "Selecciona vista:",
-        [" Inicio", " Cargar Reportes", " Ver MAP\n     → *Cuadro de Presupuesto y Dashboard*", " Ver SICOP\n      → *Estado del Ejercicio y Dashboard Austeridad*"],
+        opciones_menu,
         label_visibility="collapsed"
     )
     
-    # Normalizar selección para comparaciones
-    if "MAP" in pagina:
-        pagina = " Ver MAP"
-    elif "SICOP" in pagina:
-        pagina = " Ver SICOP"
+    # Mostrar subtítulo solo para MAP y SICOP, justo debajo
+    if pagina == " Ver MAP":
+        st.caption("*Cuadro de Presupuesto y Dashboard*")
+    elif pagina == " Ver SICOP":
+        st.caption("*Estado del Ejercicio y Dashboard Austeridad*")
     
     st.markdown("---")
     st.markdown("### Estado de Datos")
@@ -746,7 +749,8 @@ elif pagina == " Ver SICOP":
         st.markdown("#### Estado del Ejercicio por Unidad Responsable")
         
         # Construir tabla completa como en el Excel
-        resumen = resultados.get('resumen', {})
+        # resumen es un DataFrame con columnas: UR, Original, Modificado_anual, etc.
+        resumen_df = resultados.get('resumen', pd.DataFrame())
         subtotales = resultados.get('subtotales', {})
         config = resultados['metadata']['config']
         denominaciones = config.get('denominaciones', {})
@@ -754,7 +758,7 @@ elif pagina == " Ver SICOP":
         # Orden de secciones y URs
         secciones_config = [
             ('sector_central', 'Sector Central', config.get('sector_central', [])),
-            ('oficinas', 'Oficinas de Representación', config.get('oficinas', [])),
+            ('oficinas', 'Oficinas de Representación en las Entidades Federativas', config.get('oficinas', [])),
             ('organos_desconcentrados', 'Órganos Desconcentrados', config.get('organos_desconcentrados', [])),
             ('entidades_paraestatales', 'Entidades Paraestatales', config.get('entidades_paraestatales', []))
         ]
@@ -764,7 +768,7 @@ elif pagina == " Ver SICOP":
         # Fila Totales
         ejercicio_data.append({
             'UR': '',
-            'Denominación': 'Totales:',
+            'Denominación': 'Total general:',
             'Original': totales['Original'],
             'Mod. Anual': totales['Modificado_anual'],
             'Mod. Periodo': totales['Modificado_periodo'],
@@ -777,6 +781,7 @@ elif pagina == " Ver SICOP":
         })
         
         # Por cada sección
+        contador_fila = 0
         for seccion_key, seccion_nombre, urs_lista in secciones_config:
             # Subtotal de sección
             if seccion_key in subtotales:
@@ -795,10 +800,13 @@ elif pagina == " Ver SICOP":
                     '_tipo': 'subtotal'
                 })
             
-            # URs de esta sección
+            # URs de esta sección - buscar en DataFrame
+            contador_ur = 0
             for ur in urs_lista:
-                if ur in resumen:
-                    ur_data = resumen[ur]
+                # Buscar UR en el DataFrame resumen
+                ur_rows = resumen_df[resumen_df['UR'] == ur] if not resumen_df.empty else pd.DataFrame()
+                if not ur_rows.empty:
+                    ur_data = ur_rows.iloc[0]
                     ejercicio_data.append({
                         'UR': ur,
                         'Denominación': denominaciones.get(ur, ur),
@@ -806,12 +814,13 @@ elif pagina == " Ver SICOP":
                         'Mod. Anual': ur_data.get('Modificado_anual', 0),
                         'Mod. Periodo': ur_data.get('Modificado_periodo', 0),
                         'Ejercido': ur_data.get('Ejercido_acumulado', 0),
-                        'Disp. Anual': ur_data.get('Modificado_anual', 0) - ur_data.get('Ejercido_acumulado', 0),
+                        'Disp. Anual': ur_data.get('Disponible_anual', 0),
                         'Disp. Periodo': ur_data.get('Disponible_periodo', 0),
-                        '% Av. Anual': (ur_data.get('Ejercido_acumulado', 0) / ur_data.get('Modificado_anual', 1) * 100) if ur_data.get('Modificado_anual', 0) > 0 else 0,
+                        '% Av. Anual': (ur_data.get('Pct_avance_anual', 0) * 100) if ur_data.get('Pct_avance_anual') else 0,
                         '% Av. Periodo': (ur_data.get('Pct_avance_periodo', 0) * 100) if ur_data.get('Pct_avance_periodo') else 0,
-                        '_tipo': 'ur'
+                        '_tipo': 'ur_gris' if contador_ur % 2 == 1 else 'ur'
                     })
+                    contador_ur += 1
         
         df_ejercicio = pd.DataFrame(ejercicio_data)
         
@@ -829,6 +838,8 @@ elif pagina == " Ver SICOP":
                 return ['background-color: #E6D194; font-weight: bold'] * len(row)
             elif tipo == 'subtotal':
                 return ['background-color: #002F2A; color: white; font-weight: bold'] * len(row)
+            elif tipo == 'ur_gris':
+                return ['background-color: #D9D9D6'] * len(row)
             return [''] * len(row)
         
         st.dataframe(
@@ -844,7 +855,7 @@ elif pagina == " Ver SICOP":
             }).apply(estilo_estado_ejercicio, axis=1),
             use_container_width=True,
             hide_index=True,
-            height=600
+            height=800
         )
     
     with tab2:
