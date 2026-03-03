@@ -214,20 +214,18 @@ with st.sidebar:
     st.markdown('<div style="text-align:center;padding:1rem;color:white;font-weight:bold;font-size:1.5rem;"> SADER</div>', unsafe_allow_html=True)
     
     st.markdown("### Navegación")
+    
     pagina = st.radio(
         "Selecciona vista:",
-        [" Inicio", " Cargar Reportes", " Ver MAP", " Ver SICOP"],
-        label_visibility="collapsed",
-        format_func=lambda x: x
+        [" Inicio", " Cargar Reportes", " Ver MAP\n    *(Cuadro de Presupuesto y Dashboard)*", " Ver SICOP\n    *(Estado del Ejercicio y Dashboard Austeridad)*"],
+        label_visibility="collapsed"
     )
     
-    # Mostrar subtítulos descriptivos SIEMPRE debajo de las opciones
-    st.markdown("""
-    <div style="font-size:0.7rem;color:#E6D194;margin-top:5px;margin-left:10px;line-height:1.8;">
-        <p style="margin:0;"><b>Ver MAP:</b> Cuadro de Presupuesto y Dashboard</p>
-        <p style="margin:0;"><b>Ver SICOP:</b> Estado del Ejercicio y Dashboard Austeridad</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Normalizar selección para comparaciones
+    if "MAP" in pagina:
+        pagina = " Ver MAP"
+    elif "SICOP" in pagina:
+        pagina = " Ver SICOP"
     
     st.markdown("---")
     st.markdown("### Estado de Datos")
@@ -509,17 +507,21 @@ elif pagina == " Ver MAP":
         
         df_cuadro = pd.DataFrame(cuadro_data)
         
-        # Función para estilo de filas
+        # Guardar tipos para aplicar estilos
+        tipos = df_cuadro['_tipo'].tolist()
+        
+        # Quitar columna auxiliar para mostrar
+        df_mostrar = df_cuadro.drop(columns=['_tipo'])
+        
+        # Función para estilo de filas basada en índice
         def estilo_cuadro_map(row):
-            tipo = row.get('_tipo', '')
+            idx = row.name
+            tipo = tipos[idx] if idx < len(tipos) else ''
             if tipo == 'total':
                 return ['background-color: #E6D194; font-weight: bold'] * len(row)
             elif tipo == 'subtotal':
                 return ['background-color: #D9D9D6'] * len(row)
             return [''] * len(row)
-        
-        # Quitar columna auxiliar para mostrar
-        df_mostrar = df_cuadro.drop(columns=['_tipo'])
         
         st.dataframe(
             df_mostrar.style.format({
@@ -529,7 +531,7 @@ elif pagina == " Ver MAP":
                 'Ejercido': '${:,.2f}',
                 'Disponible': '${:,.2f}',
                 '% Avance': '{:.2f}%'
-            }).apply(lambda x: estilo_cuadro_map(df_cuadro.loc[x.name]), axis=1),
+            }).apply(estilo_cuadro_map, axis=1),
             use_container_width=True,
             hide_index=True,
             height=450
@@ -813,17 +815,21 @@ elif pagina == " Ver SICOP":
         
         df_ejercicio = pd.DataFrame(ejercicio_data)
         
-        # Función para estilo de filas
+        # Guardar tipos para aplicar estilos
+        tipos_sicop = df_ejercicio['_tipo'].tolist()
+        
+        # Quitar columna auxiliar para mostrar
+        df_mostrar = df_ejercicio.drop(columns=['_tipo'])
+        
+        # Función para estilo de filas basada en índice
         def estilo_estado_ejercicio(row):
-            tipo = row.get('_tipo', '')
+            idx = row.name
+            tipo = tipos_sicop[idx] if idx < len(tipos_sicop) else ''
             if tipo == 'total':
                 return ['background-color: #E6D194; font-weight: bold'] * len(row)
             elif tipo == 'subtotal':
                 return ['background-color: #002F2A; color: white; font-weight: bold'] * len(row)
             return [''] * len(row)
-        
-        # Quitar columna auxiliar para mostrar
-        df_mostrar = df_ejercicio.drop(columns=['_tipo'])
         
         st.dataframe(
             df_mostrar.style.format({
@@ -835,7 +841,7 @@ elif pagina == " Ver SICOP":
                 'Disp. Periodo': '${:,.2f}',
                 '% Av. Anual': '{:.2f}%',
                 '% Av. Periodo': '{:.2f}%'
-            }).apply(lambda x: estilo_estado_ejercicio(df_ejercicio.loc[x.name]), axis=1),
+            }).apply(estilo_estado_ejercicio, axis=1),
             use_container_width=True,
             hide_index=True,
             height=600
