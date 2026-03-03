@@ -217,7 +217,7 @@ with st.sidebar:
     
     pagina = st.radio(
         "Selecciona vista:",
-        [" Inicio", " Cargar Reportes", " Ver MAP\n    *(Cuadro de Presupuesto y Dashboard)*", " Ver SICOP\n    *(Estado del Ejercicio y Dashboard Austeridad)*"],
+        [" Inicio", " Cargar Reportes", " Ver MAP\n     → *Cuadro de Presupuesto y Dashboard*", " Ver SICOP\n      → *Estado del Ejercicio y Dashboard Austeridad*"],
         label_visibility="collapsed"
     )
     
