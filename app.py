@@ -1,6 +1,6 @@
 """
 SADER - Sistema de Reportes Presupuestarios
-Versión con persistencia de datos y soporte simultáneo MAP/SICOP
+Versión con soporte simultáneo MAP/SICOP
 """
 
 import streamlit as st
