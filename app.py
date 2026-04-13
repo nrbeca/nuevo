@@ -173,7 +173,7 @@ def verificar_contraseña():
     with col2:
         st.markdown("""
         <div class="login-header">
-            <h1>🌾 SADER</h1>
+            <h1> SADER</h1>
             <p>Sistema de Reportes Presupuestarios</p>
         </div>
         """, unsafe_allow_html=True)
