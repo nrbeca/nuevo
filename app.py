@@ -397,7 +397,7 @@ with st.sidebar:
     
     # Botón de cerrar sesión
     st.markdown("---")
-    if st.button("🚪 Cerrar sesión", use_container_width=True):
+    if st.button(" Cerrar sesión", use_container_width=True):
         st.session_state['autenticado'] = False
         st.rerun()
 
