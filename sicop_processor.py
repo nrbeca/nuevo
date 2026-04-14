@@ -107,6 +107,8 @@ def procesar_sicop(df, filename):
     # Aplicar mapeo de URs
     df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
     df['Nueva UR'] = df['ID_UNIDAD'].apply(lambda x: mapear_ur(x, config))
+    # Asegurar que Nueva UR sea siempre string
+    df['Nueva UR'] = df['Nueva UR'].astype(str)
     
     # Calcular Partida
     df['Partida'] = (
@@ -132,7 +134,9 @@ def procesar_sicop(df, filename):
     df_para_cop_62_67 = df.copy()
     
     # Aplicar filtros - EXCLUIR COP 62 y 67 además de los otros
-    df = df[df['Nueva UR'].astype(str).isin(urs_validas)].copy()
+    # Convertir urs_validas a strings para comparación consistente
+    urs_validas_str = [str(ur) for ur in urs_validas]
+    df = df[df['Nueva UR'].isin(urs_validas_str)].copy()
     df = df[~df['Partida'].isin([39801, 39810])].copy()
     df = df[~df['CAPITULO'].isin([1, 7])].copy()
     # Filtro de CONTROL_OPERATIVO: incluir 0, 10, 40, 50, 51 pero EXCLUIR 62 y 67
