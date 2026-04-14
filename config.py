@@ -78,7 +78,13 @@ FUSION_PROGRAMAS_2025 = {}
 # ============================================================================
 
 PROGRAMAS_NOMBRES_2026 = {
+    'B005': 'Producción y comercialización de Biológicos Veterinarios',
     'B006': 'Adquisición, industrialización y comercialización de productos agroalimentarios',
+    'K017': 'Infraestructura para el desarrollo rural sustentable',
+    'M001': 'Actividades de apoyo administrativo',
+    'O001': 'Actividades de apoyo a la función pública y buen gobierno',
+    'P021': 'Aplicación de la Política Agropecuaria',
+    'Q004': 'Desarrollo y aplicación de programas y proyectos educativos y de investigación en el sector agroalimentario',
     'S052': 'Programa de Abasto Social y Precios de Garantía a cargo de Leche para el Bienestar, S.A. de C.V.',
     'S053': 'Programa de Abasto Rural',
     'S263': 'Sanidad e Inocuidad Agroalimentaria',
@@ -87,15 +93,14 @@ PROGRAMAS_NOMBRES_2026 = {
     'S293': 'Producción para el Bienestar',
     'S304': 'Pesca y Acuacultura Sustentables',
     'S318': 'Comercio Justo',
-    'U027': 'Cosechando Soberanía',
+    'U027': 'Soberanía Alimentaria',
+    'W001': 'Operaciones ajenas',
+    # Programas anteriores que pueden aparecer en datos históricos
     'B004': 'Adquisición de leche nacional',
     'P001': 'Diseño y Aplicación de la Política Agropecuaria',
     'E001': 'Desarrollo, aplicación de programas educativos e investigación en materia agroalimentaria',
     'E006': 'Generación de Proyectos de Investigación',
     'G001': 'Regulación, supervisión y aplicación de las políticas públicas',
-    'M001': 'Actividades de apoyo administrativo',
-    'O001': 'Actividades de apoyo a la función pública y buen gobierno',
-    'W001': 'Operaciones ajenas',
 }
 
 # Orden: B006 primero, luego S052-S304, S318, U027
@@ -377,17 +382,17 @@ def round_like_excel(value, decimals=2):
 
 
 def numero_a_letras_mx(numero):
-    """Convierte número a texto en español mexicano"""
+    """Convierte número a texto en español mexicano con formato: primera letra mayúscula, resto minúsculas"""
     entero = int(numero)
     centavos = int(round((numero - entero) * 100))
     if entero == 0:
-        texto_entero = "Cero"
+        texto_entero = "cero"
     else:
-        texto_entero = num2words(entero, lang='es').title()
-        texto_entero = texto_entero.replace('Mil Millones', 'Mil millones')
-        texto_entero = texto_entero.replace('Millones', 'millones')
-        texto_entero = texto_entero.replace('Millón', 'millón')
-        texto_entero = texto_entero.replace('Mil ', 'mil ')
+        # num2words devuelve en minúsculas
+        texto_entero = num2words(entero, lang='es')
+    # Capitalizar solo la primera letra de todo el texto
+    if texto_entero:
+        texto_entero = texto_entero[0].upper() + texto_entero[1:]
     return f"{texto_entero} pesos {centavos:02d}/100 M.N."
 
 
