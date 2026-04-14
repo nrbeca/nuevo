@@ -173,7 +173,7 @@ def verificar_contraseña():
     with col2:
         st.markdown("""
         <div class="login-header">
-            <h1> SADER</h1>
+            <h1>🌾 SADER</h1>
             <p>Sistema de Reportes Presupuestarios</p>
         </div>
         """, unsafe_allow_html=True)
@@ -397,7 +397,7 @@ with st.sidebar:
     
     # Botón de cerrar sesión
     st.markdown("---")
-    if st.button(" Cerrar sesión", use_container_width=True):
+    if st.button("🚪 Cerrar sesión", use_container_width=True):
         st.session_state['autenticado'] = False
         st.rerun()
 
@@ -618,21 +618,20 @@ elif pagina == " Ver MAP":
         '_tipo': 'subtotal'
     })
     
-    # Programas específicos
+    # Programas específicos - mostrar TODOS aunque no tengan datos
     for prog in programas_especificos:
-        if prog in programas:
-            nombre = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
-            d = programas[prog]
-            cuadro_data.append({
-                'Concepto': nombre,
-                'Original': d.get('Original', 0),
-                'Mod. Anual': d.get('ModificadoAnualNeto', 0),
-                'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
-                'Ejercido': d.get('Ejercido', 0),
-                'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
-                '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
-                '_tipo': 'programa'
-            })
+        nombre = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+        d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+        cuadro_data.append({
+            'Concepto': nombre,
+            'Original': d.get('Original', 0),
+            'Mod. Anual': d.get('ModificadoAnualNeto', 0),
+            'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
+            'Ejercido': d.get('Ejercido', 0),
+            'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
+            '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
+            '_tipo': 'programa'
+        })
     
     # Otros programas
     cat_otros = categorias.get('otros_programas', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
@@ -691,6 +690,30 @@ elif pagina == " Ver MAP":
         hide_index=True,
         height=450
     )
+    
+    # Notas al pie del cuadro MAP
+    ultimo_habil = obtener_ultimo_dia_habil(date.today())
+    congelados = resultados.get('congelados', {})
+    
+    st.markdown("---")
+    st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
+    st.markdown("**Notas:**")
+    st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y suministros\" y 3000 \"Servicios generales\".")
+    st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
+    
+    # Notas de congelados por programa (3, 4, 5)
+    programas_con_congelados = ['S263', 'S293', 'S304']
+    nota_num = 3
+    for prog in programas_con_congelados:
+        valor = congelados.get('valores', {}).get(prog, 0)
+        texto = congelados.get('textos', {}).get(prog, '')
+        if valor > 0:
+            st.markdown(f"{nota_num}/ El presupuesto modificado anual y al periodo no incluye un monto de ${valor:,.2f} ({texto}), de recursos congelados.")
+        else:
+            st.markdown(f"{nota_num}/ Sin recursos congelados para este programa.")
+        nota_num += 1
+    
+    st.markdown("6/ Incluye diversos programas de carácter administrativo.")
 
 # ============================================================================
 # PÁGINA: VER SICOP
@@ -846,6 +869,23 @@ elif pagina == " Ver SICOP":
             hide_index=True,
             height=800
         )
+        
+        # Notas al pie del cuadro SICOP
+        ultimo_habil = obtener_ultimo_dia_habil(date.today())
+        congelados_sicop = resultados.get('congelados', {})
+        
+        st.markdown("---")
+        st.markdown(f"**Fuente:** Elaborado con la base extraída del Sistema de Contabilidad y Presupuesto (SICOP), con corte al {formatear_fecha(ultimo_habil)}.")
+        st.markdown("**Notas:**")
+        st.markdown("1/ No Incluye el capítulo 1000 \"Servicios personales\" ni partida 39801 \"Impuesto sobre nóminas\".")
+        
+        cong_anual = congelados_sicop.get('anual', 0)
+        texto_anual = congelados_sicop.get('texto_anual', '')
+        st.markdown(f"2/ El Presupuesto Modificado Anual no incluye ${cong_anual:,.2f} ({texto_anual}), recursos congelados.")
+        
+        cong_periodo = congelados_sicop.get('periodo', 0)
+        texto_periodo = congelados_sicop.get('texto_periodo', '')
+        st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye ${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
     
     # ========================================================================
     # TAB 2: Dashboard Presupuesto (MOVIDO DE MAP)
@@ -863,7 +903,7 @@ elif pagina == " Ver SICOP":
                                    config.get('organos_desconcentrados', []) + 
                                    config.get('entidades_paraestatales', [])])
         denominaciones = config.get('denominaciones', {})
-        urs_con_nombre = [f"{ur} - {denominaciones.get(ur, ur)[:40]}" for ur in urs_disponibles]
+        urs_con_nombre = [f"{ur} - {denominaciones.get(ur, ur)}" for ur in urs_disponibles]
         
         ur_seleccionada = st.selectbox("Selecciona una Unidad Responsable:", options=urs_con_nombre, index=0, key="ur_dash_ppto")
         ur_codigo = ur_seleccionada.split(" - ")[0]
