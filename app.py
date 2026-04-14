@@ -1,3 +1,4 @@
+
 """
 SADER - Sistema de Reportes Presupuestarios
 Versión con soporte simultáneo MAP/SICOP
@@ -225,12 +226,46 @@ st.markdown("""
     .data-status { font-size: 0.85rem; padding: 0.5rem; border-radius: 5px; margin: 0.5rem 0; }
     .data-loaded { background: #e8f5e9; color: #2e7d32; }
     .data-empty { background: #fff3e0; color: #ef6c00; }
+    /* Estilos para que las celdas de tablas muestren texto completo */
+    .stDataFrame div[data-testid="stDataFrameResizable"] { width: 100% !important; }
+    .stDataFrame table { table-layout: auto !important; width: 100% !important; }
+    .stDataFrame th, .stDataFrame td { 
+        white-space: pre-wrap !important; 
+        word-wrap: break-word !important; 
+        max-width: none !important;
+        overflow: visible !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
 # FUNCIONES AUXILIARES
 # ============================================================================
+
+def wrap_nombre(nombre, max_chars=50):
+    """
+    Agrega saltos de línea a nombres largos para que se vean completos en las celdas.
+    Divide en la palabra más cercana al límite de caracteres.
+    """
+    if len(nombre) <= max_chars:
+        return nombre
+    
+    palabras = nombre.split(' ')
+    lineas = []
+    linea_actual = ''
+    
+    for palabra in palabras:
+        if len(linea_actual) + len(palabra) + 1 <= max_chars:
+            linea_actual = f"{linea_actual} {palabra}".strip()
+        else:
+            if linea_actual:
+                lineas.append(linea_actual)
+            linea_actual = palabra
+    
+    if linea_actual:
+        lineas.append(linea_actual)
+    
+    return '\n'.join(lineas)
 
 def format_currency(value):
     if pd.isna(value) or value == 0:
@@ -522,6 +557,10 @@ elif pagina == " Ver MAP":
     config = metadata_map['config']
     totales = resultados['totales']
     
+    # Obtener fecha para título dinámico
+    fecha_archivo = metadata_map.get('fecha_archivo', date.today())
+    ultimo_habil = obtener_ultimo_dia_habil(date.today())
+    
     # Botón de descarga
     col_titulo, col_descarga = st.columns([3, 1])
     with col_titulo:
@@ -537,7 +576,9 @@ elif pagina == " Ver MAP":
         )
     
     st.markdown("---")
-    st.markdown("### Resumen General Ramo 08")
+    
+    # Título dinámico como en Excel
+    st.markdown(f'### Estado del ejercicio al {formatear_fecha(ultimo_habil)} del Ramo 08 "Agricultura y Desarrollo Rural"')
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -552,7 +593,7 @@ elif pagina == " Ver MAP":
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Tab único: Cuadro de Presupuesto
-    st.markdown("#### Cuadro de Presupuesto")
+    st.markdown("#### Concepto / Programa Presupuestario")
     
     # Construir tabla completa como en el Excel
     cuadro_data = []
@@ -621,9 +662,10 @@ elif pagina == " Ver MAP":
     # Programas específicos - mostrar TODOS aunque no tengan datos
     for prog in programas_especificos:
         nombre = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+        nombre_wrapped = wrap_nombre(f"{prog} - {nombre}", 55)
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
         cuadro_data.append({
-            'Concepto': nombre,
+            'Concepto': nombre_wrapped,
             'Original': d.get('Original', 0),
             'Mod. Anual': d.get('ModificadoAnualNeto', 0),
             'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
@@ -732,6 +774,9 @@ elif pagina == " Ver SICOP":
     metadata_sicop = resultados['metadata']
     config = metadata_sicop['config']
     
+    # Obtener fecha para título dinámico
+    ultimo_habil = obtener_ultimo_dia_habil(date.today())
+    
     # Botón de descarga
     col_titulo, col_descarga = st.columns([3, 1])
     with col_titulo:
@@ -747,7 +792,9 @@ elif pagina == " Ver SICOP":
         )
     
     st.markdown("---")
-    st.markdown("### Resumen por Unidad Responsable SICOP")
+    
+    # Título dinámico como en Excel
+    st.markdown(f'### Estado del ejercicio del 1 de enero al {formatear_fecha(ultimo_habil)} por Unidad Responsable de la Secretaría de Agricultura y Desarrollo Rural 1/')
     
     totales = resultados['totales']
     
@@ -824,9 +871,11 @@ elif pagina == " Ver SICOP":
                 ur_rows = resumen_df[resumen_df['UR'] == ur] if not resumen_df.empty else pd.DataFrame()
                 if not ur_rows.empty:
                     ur_data = ur_rows.iloc[0]
+                    denom = denominaciones.get(ur, ur)
+                    denom_wrapped = wrap_nombre(denom, 45)
                     ejercicio_data.append({
                         'UR': ur,
-                        'Denominación': denominaciones.get(ur, ur),
+                        'Denominación': denom_wrapped,
                         'Original': ur_data.get('Original', 0),
                         'Mod. Anual': ur_data.get('Modificado_anual', 0),
                         'Mod. Periodo': ur_data.get('Modificado_periodo', 0),
@@ -987,10 +1036,16 @@ elif pagina == " Ver SICOP":
                 pago_cop_00 = pasivos_cop.get('PagoCOP_00', 0)
                 pago_cop_10 = pasivos_cop.get('PagoCOP_10', 0)
                 
+                # Total pagado = COP 00 + COP 10
+                pago_cop_total = pago_cop_00 + pago_cop_10
+                
                 # Cuadro 1: Pasivos reportados a SHCP
                 st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;"><div style="font-size:0.8rem;color:#666;">Pasivos reportados a la SHCP</div><div style="font-size:1.2rem;font-weight:bold;color:#9B2247;">{format_currency(pasivos_shcp)}</div></div>', unsafe_allow_html=True)
                 
-                # Cuadros 2 y 3: Pasivos pagados en COP 00 y COP 10
+                # Cuadro 2: Total Pasivos Pagados (suma de COP 00 + COP 10)
+                st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;"><div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div><div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div><div style="font-size:0.65rem;color:#999;">(COP 00 + COP 10)</div></div>', unsafe_allow_html=True)
+                
+                # Cuadros 3 y 4: Pasivos pagados en COP 00 y COP 10
                 cp1, cp2 = st.columns(2)
                 with cp1:
                     st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;"><div style="font-size:0.8rem;color:#666;">Pasivos pagados en COP 00</div><div style="font-size:1.1rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_00)}</div><div style="font-size:0.65rem;color:#999;">(FF=6, COP=0)</div></div>', unsafe_allow_html=True)
@@ -998,9 +1053,6 @@ elif pagina == " Ver SICOP":
                     st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;"><div style="font-size:0.8rem;color:#666;">Pasivos pagados en COP 10</div><div style="font-size:1.1rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_10)}</div><div style="font-size:0.65rem;color:#999;">(FF=1, COP=10)</div></div>', unsafe_allow_html=True)
                 
                 st.markdown("**Avance de pago de pasivos**")
-                
-                # Total pagado = COP 00 + COP 10
-                pago_cop_total = pago_cop_00 + pago_cop_10
                 
                 if pasivos_shcp > 0 and pago_cop_total > 0:
                     pct_pagado = min(pago_cop_total / pasivos_shcp, 1)
