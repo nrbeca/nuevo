@@ -78,6 +78,7 @@ FUSION_PROGRAMAS_2025 = {}
 # ============================================================================
 
 PROGRAMAS_NOMBRES_2026 = {
+    'B006': 'Adquisición, industrialización y comercialización de productos agroalimentarios',
     'S052': 'Programa de Abasto Social y Precios de Garantía a cargo de Leche para el Bienestar, S.A. de C.V.',
     'S053': 'Programa de Abasto Rural',
     'S263': 'Sanidad e Inocuidad Agroalimentaria',
@@ -85,7 +86,8 @@ PROGRAMAS_NOMBRES_2026 = {
     'S292': 'Fertilizantes para el Bienestar',
     'S293': 'Producción para el Bienestar',
     'S304': 'Pesca y Acuacultura Sustentables',
-    'B006': 'Adquisición, industrialización y comercialización de productos agroalimentarios',
+    'S318': 'Cosechando Soberanía Alimentaria',
+    'U027': 'Cosechando Soberanía',
     'B004': 'Adquisición de leche nacional',
     'P001': 'Diseño y Aplicación de la Política Agropecuaria',
     'E001': 'Desarrollo, aplicación de programas educativos e investigación en materia agroalimentaria',
@@ -96,7 +98,8 @@ PROGRAMAS_NOMBRES_2026 = {
     'W001': 'Operaciones ajenas',
 }
 
-PROGRAMAS_ESPECIFICOS_2026 = ['S052', 'S053', 'S263', 'S290', 'S292', 'S293', 'S304', 'B006']
+# Orden: B006 primero, luego S052-S304, S318, U027
+PROGRAMAS_ESPECIFICOS_2026 = ['B006', 'S052', 'S053', 'S263', 'S290', 'S292', 'S293', 'S304', 'S318', 'U027']
 
 NOMBRES_ESPECIALES_2026 = {
     'S263': 'Sanidad e Inocuidad Agroalimentaria 3/',
