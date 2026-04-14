@@ -46,6 +46,14 @@ def calcular_congelado_programa(df, programa):
     return round_like_excel(df_programa['CongeladoAnual'].sum(), 2)
 
 
+def calcular_congelado_periodo_programa(df, programa):
+    """Calcula el congelado al periodo de un programa específico"""
+    df_programa = df[df['Pp'] == programa]
+    if len(df_programa) == 0:
+        return 0
+    return round_like_excel(df_programa['CongeladoPeriodo'].sum(), 2)
+
+
 def procesar_map(df, filename):
     """Procesa un archivo MAP y genera el resumen presupuestario"""
     
@@ -152,11 +160,19 @@ def procesar_map(df, filename):
     programas_con_congelados = ['S263', 'S293', 'S304']
     congelados_valores = {}
     congelados_textos = {}
+    congelados_valores_periodo = {}
+    congelados_textos_periodo = {}
     
     for prog in programas_con_congelados:
-        valor = calcular_congelado_programa(df, prog)
-        congelados_valores[prog] = valor
-        congelados_textos[prog] = numero_a_letras_mx(valor)
+        # Congelado anual
+        valor_anual = calcular_congelado_programa(df, prog)
+        congelados_valores[prog] = valor_anual
+        congelados_textos[prog] = numero_a_letras_mx(valor_anual)
+        
+        # Congelado periodo
+        valor_periodo = calcular_congelado_periodo_programa(df, prog)
+        congelados_valores_periodo[prog] = valor_periodo
+        congelados_textos_periodo[prog] = numero_a_letras_mx(valor_periodo)
     
     # =========================================================================
     # CREAR TABLAS DINÁMICAS (igual que Colab)
@@ -313,6 +329,8 @@ def procesar_map(df, filename):
         'congelados': {
             'valores': congelados_valores,
             'textos': congelados_textos,
+            'valores_periodo': congelados_valores_periodo,
+            'textos_periodo': congelados_textos_periodo,
         },
         'totales': totales,
         'categorias': categorias,
