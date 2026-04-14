@@ -17,7 +17,8 @@ import pickle
 
 from config import (
     MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
-    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD
+    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
+    DENOMINACIONES_2026, numero_a_letras_mx
 )
 
 # Importar PASIVOS si existen (opcional)
@@ -226,46 +227,12 @@ st.markdown("""
     .data-status { font-size: 0.85rem; padding: 0.5rem; border-radius: 5px; margin: 0.5rem 0; }
     .data-loaded { background: #e8f5e9; color: #2e7d32; }
     .data-empty { background: #fff3e0; color: #ef6c00; }
-    /* Estilos para que las celdas de tablas muestren texto completo */
-    .stDataFrame div[data-testid="stDataFrameResizable"] { width: 100% !important; }
-    .stDataFrame table { table-layout: auto !important; width: 100% !important; }
-    .stDataFrame th, .stDataFrame td { 
-        white-space: pre-wrap !important; 
-        word-wrap: break-word !important; 
-        max-width: none !important;
-        overflow: visible !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
 # FUNCIONES AUXILIARES
 # ============================================================================
-
-def wrap_nombre(nombre, max_chars=50):
-    """
-    Agrega saltos de línea a nombres largos para que se vean completos en las celdas.
-    Divide en la palabra más cercana al límite de caracteres.
-    """
-    if len(nombre) <= max_chars:
-        return nombre
-    
-    palabras = nombre.split(' ')
-    lineas = []
-    linea_actual = ''
-    
-    for palabra in palabras:
-        if len(linea_actual) + len(palabra) + 1 <= max_chars:
-            linea_actual = f"{linea_actual} {palabra}".strip()
-        else:
-            if linea_actual:
-                lineas.append(linea_actual)
-            linea_actual = palabra
-    
-    if linea_actual:
-        lineas.append(linea_actual)
-    
-    return '\n'.join(lineas)
 
 def format_currency(value):
     if pd.isna(value) or value == 0:
@@ -389,6 +356,70 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     return {
         'PagoCOP_00': round(pago_cop_00, 2),
         'PagoCOP_10': round(pago_cop_10, 2)
+    }
+
+def calcular_cop_62_67_desde_sicop(df_original):
+    """
+    Calcula los montos de COP 62 y COP 67 que no se consideran en el reporte.
+    
+    COP 62: UR 120
+    COP 67: UR 512 y 513
+    
+    Returns:
+        dict con montos y URs por cada COP
+    """
+    if df_original is None or df_original.empty:
+        return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    
+    df = df_original.copy()
+    
+    # Asegurar que tenemos la columna CONTROL_OPERATIVO
+    if 'CONTROL_OPERATIVO' not in df.columns:
+        return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    
+    # Mapear URs si es necesario
+    if 'Nueva UR' in df.columns:
+        ur_col = 'Nueva UR'
+    elif 'ID_UNIDAD' in df.columns:
+        ur_col = 'ID_UNIDAD'
+    else:
+        return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    
+    df[ur_col] = df[ur_col].astype(str)
+    df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
+    
+    # Buscar columna de ejercido
+    ejercido_col = None
+    for col_name in ['EJERCIDO_REAL', 'EJERCIDO', 'EJERCIDO_ACUMULADO']:
+        if col_name in df.columns:
+            ejercido_col = col_name
+            break
+    
+    if ejercido_col is None:
+        # Calcular EJERCIDO_REAL si no existe
+        if 'EJERCIDO' in df.columns and 'DEVENGADO' in df.columns:
+            df['EJERCIDO_REAL'] = df['EJERCIDO'].fillna(0) + df['DEVENGADO'].fillna(0)
+            if 'EJERCIDO_TRAMITE' in df.columns:
+                df['EJERCIDO_REAL'] += df['EJERCIDO_TRAMITE'].fillna(0)
+            ejercido_col = 'EJERCIDO_REAL'
+        else:
+            return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    
+    df[ejercido_col] = pd.to_numeric(df[ejercido_col], errors='coerce').fillna(0)
+    
+    # COP 62 - UR 120
+    df_cop62 = df[(df['CONTROL_OPERATIVO'] == 62)]
+    monto_cop62 = df_cop62[ejercido_col].sum()
+    urs_cop62 = df_cop62[ur_col].unique().tolist()
+    
+    # COP 67 - UR 512, 513
+    df_cop67 = df[(df['CONTROL_OPERATIVO'] == 67)]
+    monto_cop67 = df_cop67[ejercido_col].sum()
+    urs_cop67 = df_cop67[ur_col].unique().tolist()
+    
+    return {
+        'cop_62': {'monto': round(monto_cop62, 2), 'urs': urs_cop62},
+        'cop_67': {'monto': round(monto_cop67, 2), 'urs': urs_cop67}
     }
 
 # ============================================================================
@@ -615,10 +646,10 @@ elif pagina == " Ver MAP":
         '_tipo': 'total'
     })
     
-    # Servicios personales
+    # Servicios Personales
     cat_sp = categorias.get('servicios_personales', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
     cuadro_data.append({
-        'Concepto': 'Servicios personales',
+        'Concepto': 'Servicios Personales',
         'Original': cat_sp['Original'],
         'Mod. Anual': cat_sp['ModificadoAnualNeto'],
         'Mod. Periodo': cat_sp['ModificadoPeriodoNeto'],
@@ -662,10 +693,9 @@ elif pagina == " Ver MAP":
     # Programas específicos - mostrar TODOS aunque no tengan datos
     for prog in programas_especificos:
         nombre = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
-        nombre_wrapped = wrap_nombre(f"{prog} - {nombre}", 55)
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
         cuadro_data.append({
-            'Concepto': nombre_wrapped,
+            'Concepto': f"{prog} - {nombre}",
             'Original': d.get('Original', 0),
             'Mod. Anual': d.get('ModificadoAnualNeto', 0),
             'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
@@ -740,17 +770,23 @@ elif pagina == " Ver MAP":
     st.markdown("---")
     st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
     st.markdown("**Notas:**")
-    st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y suministros\" y 3000 \"Servicios generales\".")
+    st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
     
-    # Notas de congelados por programa (3, 4, 5)
+    # Notas de congelados por programa (3, 4, 5) con monto anual Y periodo
     programas_con_congelados = ['S263', 'S293', 'S304']
     nota_num = 3
     for prog in programas_con_congelados:
-        valor = congelados.get('valores', {}).get(prog, 0)
-        texto = congelados.get('textos', {}).get(prog, '')
-        if valor > 0:
-            st.markdown(f"{nota_num}/ El presupuesto modificado anual y al periodo no incluye un monto de ${valor:,.2f} ({texto}), de recursos congelados.")
+        valor_anual = congelados.get('valores', {}).get(prog, 0)
+        texto_anual = congelados.get('textos', {}).get(prog, '')
+        valor_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        texto_periodo = congelados.get('textos_periodo', {}).get(prog, '')
+        
+        if valor_anual > 0 or valor_periodo > 0:
+            nota = f"{nota_num}/ El presupuesto modificado incluye un monto anual de ${valor_anual:,.2f} ({texto_anual}), de recursos congelados."
+            if valor_periodo > 0:
+                nota += f" Y un monto al periodo de ${valor_periodo:,.2f} ({texto_periodo}), de recursos congelados."
+            st.markdown(nota)
         else:
             st.markdown(f"{nota_num}/ Sin recursos congelados para este programa.")
         nota_num += 1
@@ -872,10 +908,9 @@ elif pagina == " Ver SICOP":
                 if not ur_rows.empty:
                     ur_data = ur_rows.iloc[0]
                     denom = denominaciones.get(ur, ur)
-                    denom_wrapped = wrap_nombre(denom, 45)
                     ejercicio_data.append({
                         'UR': ur,
-                        'Denominación': denom_wrapped,
+                        'Denominación': denom,
                         'Original': ur_data.get('Original', 0),
                         'Mod. Anual': ur_data.get('Modificado_anual', 0),
                         'Mod. Periodo': ur_data.get('Modificado_periodo', 0),
@@ -926,7 +961,7 @@ elif pagina == " Ver SICOP":
         st.markdown("---")
         st.markdown(f"**Fuente:** Elaborado con la base extraída del Sistema de Contabilidad y Presupuesto (SICOP), con corte al {formatear_fecha(ultimo_habil)}.")
         st.markdown("**Notas:**")
-        st.markdown("1/ No Incluye el capítulo 1000 \"Servicios personales\" ni partida 39801 \"Impuesto sobre nóminas\".")
+        st.markdown("1/ No Incluye el capítulo 1000 \"Servicios Personales\" ni partida 39801 \"Impuesto Sobre Nóminas\".")
         
         cong_anual = congelados_sicop.get('anual', 0)
         texto_anual = congelados_sicop.get('texto_anual', '')
@@ -935,6 +970,34 @@ elif pagina == " Ver SICOP":
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye ${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
+        
+        # Nota 4: COP 62 y 67 no considerados - usar datos del procesador
+        cop_excluidos = resultados.get('cop_excluidos', {})
+        cop62 = cop_excluidos.get('cop_62', {'monto': 0, 'urs': [], 'texto': ''})
+        cop67 = cop_excluidos.get('cop_67', {'monto': 0, 'urs': [], 'texto': ''})
+        
+        # Si no hay datos del procesador, calcular dinámicamente
+        if not cop_excluidos:
+            datos_cop_62_67 = calcular_cop_62_67_desde_sicop(df_original)
+            cop62 = datos_cop_62_67['cop_62']
+            cop62['texto'] = numero_a_letras_mx(cop62['monto']) if cop62['monto'] > 0 else ''
+            cop67 = datos_cop_62_67['cop_67']
+            cop67['texto'] = numero_a_letras_mx(cop67['monto']) if cop67['monto'] > 0 else ''
+        
+        nota_cop = "4/ No se están considerando montos de los Controles Operativos (COP): "
+        partes = []
+        if cop62.get('monto', 0) > 0:
+            urs_62 = ', '.join(str(u) for u in cop62.get('urs', ['120'])) if cop62.get('urs') else '120'
+            texto_62 = cop62.get('texto', numero_a_letras_mx(cop62['monto']))
+            partes.append(f"COP 62 la cantidad de ${cop62['monto']:,.2f} ({texto_62}) esto en la UR {urs_62}")
+        if cop67.get('monto', 0) > 0:
+            urs_67 = ' y '.join(str(u) for u in cop67.get('urs', ['512', '513'])) if cop67.get('urs') else '512 y 513'
+            texto_67 = cop67.get('texto', numero_a_letras_mx(cop67['monto']))
+            partes.append(f"COP 67 la cantidad de ${cop67['monto']:,.2f} ({texto_67}) esto en las UR {urs_67}")
+        
+        if partes:
+            nota_cop += '; y en '.join(partes) + "."
+            st.markdown(nota_cop)
     
     # ========================================================================
     # TAB 2: Dashboard Presupuesto (MOVIDO DE MAP)
@@ -1042,15 +1105,8 @@ elif pagina == " Ver SICOP":
                 # Cuadro 1: Pasivos reportados a SHCP
                 st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;"><div style="font-size:0.8rem;color:#666;">Pasivos reportados a la SHCP</div><div style="font-size:1.2rem;font-weight:bold;color:#9B2247;">{format_currency(pasivos_shcp)}</div></div>', unsafe_allow_html=True)
                 
-                # Cuadro 2: Total Pasivos Pagados (suma de COP 00 + COP 10)
-                st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;"><div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div><div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div><div style="font-size:0.65rem;color:#999;">(COP 00 + COP 10)</div></div>', unsafe_allow_html=True)
-                
-                # Cuadros 3 y 4: Pasivos pagados en COP 00 y COP 10
-                cp1, cp2 = st.columns(2)
-                with cp1:
-                    st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;"><div style="font-size:0.8rem;color:#666;">Pasivos pagados en COP 00</div><div style="font-size:1.1rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_00)}</div><div style="font-size:0.65rem;color:#999;">(FF=6, COP=0)</div></div>', unsafe_allow_html=True)
-                with cp2:
-                    st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;"><div style="font-size:0.8rem;color:#666;">Pasivos pagados en COP 10</div><div style="font-size:1.1rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_10)}</div><div style="font-size:0.65rem;color:#999;">(FF=1, COP=10)</div></div>', unsafe_allow_html=True)
+                # Cuadro 2: Total Pasivos Pagados (suma de COP 00 + COP 10) con nota
+                st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;"><div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div><div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div><div style="font-size:0.8rem;color:#666;">Incluye FF 6 y COP 10</div></div>', unsafe_allow_html=True)
                 
                 st.markdown("**Avance de pago de pasivos**")
                 
@@ -1080,9 +1136,9 @@ elif pagina == " Ver SICOP":
                     cap_data = []
                     for cap, cap_vals in caps_ur.items():
                         cap_nombre = {
-                            '2': 'Cap. 2000 - Materiales',
-                            '3': 'Cap. 3000 - Servicios',
-                            '4': 'Cap. 4000 - Subsidios'
+                            '2': 'Cap. 2000 - Materiales y Suministros',
+                            '3': 'Cap. 3000 - Servicios Generales',
+                            '4': 'Cap. 4000 - Subsidios y Transferencias'
                         }.get(cap, f'Cap. {cap}000')
                         cap_data.append({
                             'Capítulo': cap_nombre,
@@ -1111,8 +1167,16 @@ elif pagina == " Ver SICOP":
                 
                 if partidas_ur:
                     df_partidas = pd.DataFrame(partidas_ur)
+                    # Seleccionar y renombrar columnas para mostrar
+                    cols_mostrar = ['Partida', 'Denominacion', 'Programa', 'Original', 'Modificado', 'Ejercido', 'Disponible']
+                    cols_existentes = [c for c in cols_mostrar if c in df_partidas.columns]
+                    df_partidas_display = df_partidas[cols_existentes].copy()
+                    
                     st.dataframe(
-                        df_partidas.style.format({
+                        df_partidas_display.style.format({
+                            'Original': '${:,.2f}',
+                            'Modificado': '${:,.2f}',
+                            'Ejercido': '${:,.2f}',
                             'Disponible': '${:,.2f}'
                         }),
                         use_container_width=True,
@@ -1132,7 +1196,8 @@ elif pagina == " Ver SICOP":
         
         opciones_ur_aust = []
         for ur in urs_disponibles:
-            nombre = UR_NOMBRES.get(ur, '')
+            # Usar DENOMINACIONES_2026 para nombres correctos de 2026
+            nombre = DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ''))
             if nombre:
                 opciones_ur_aust.append(f"{ur} - {nombre}")
             else:
@@ -1141,7 +1206,7 @@ elif pagina == " Ver SICOP":
         ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
         
         ur_codigo = ur_seleccionada.split(" - ")[0] if " - " in ur_seleccionada else ur_seleccionada
-        ur_nombre = UR_NOMBRES.get(ur_codigo, ur_codigo)
+        ur_nombre = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
         
         datos_dashboard = generar_dashboard_austeridad_desde_sicop(datos_sicop_aust, ur_codigo)
         
