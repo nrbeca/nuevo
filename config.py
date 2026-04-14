@@ -86,7 +86,7 @@ PROGRAMAS_NOMBRES_2026 = {
     'S292': 'Fertilizantes para el Bienestar',
     'S293': 'Producción para el Bienestar',
     'S304': 'Pesca y Acuacultura Sustentables',
-    'S318': 'Cosechando Soberanía Alimentaria',
+    'S318': 'Comercio Justo',
     'U027': 'Cosechando Soberanía',
     'B004': 'Adquisición de leche nacional',
     'P001': 'Diseño y Aplicación de la Política Agropecuaria',
