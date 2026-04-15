@@ -248,38 +248,22 @@ MAPEO_UR_2025 = {
 # ============================================================================
 
 DENOMINACIONES_2026 = {
-    # Secretaría
     '100': 'Secretaría',
-    '110': 'Unidad de Asuntos Jurídicos, Derechos Humanos y Normalización',
+    '110': 'Unidad de Asuntos Jurídicos',
+    '106': 'Coordinación de Legislación y Consulta',
+    '107': 'Coordinación de lo Contencioso',
     '111': 'Dirección General de Comunicación Social',
-    '112': 'Dirección General de Enlace Legislativo',
-    '117': 'Coordinación General de Asuntos Internacionales',
-    # Subsecretaría
+    '112': 'Coordinación de Atención Legislativa',
+    '117': 'Coordinación de Asuntos Internacionales',
+    '119': 'Dirección General de Planeación y Evaluación de Políticas y Programas',
+    '120': 'Dirección General del Servicio de Información Agroalimentaria y Pesquera',
     '200': 'Subsecretaría de Agricultura y Desarrollo Rural',
-    '220': 'Coordinación General de Bienestar para el Campo',
+    '220': 'Unidad de Bienestar para el Campo',
     '221': 'Dirección General de Fertilizantes para el Bienestar',
     '222': 'Dirección General de Producción para el Bienestar',
-    '225': 'Coordinación General de Producción Agrícola y Ganadera',
-    '226': 'Dirección General de Producción Agrícola',
-    '227': 'Dirección General de Producción Ganadera',
-    '228': 'Dirección General de Implementación de Acuerdos Sectoriales',
-    '230': 'Coordinación General de Comercialización y Financiamiento',
-    '231': 'Dirección General de Precios y Ordenamiento Comercial',
-    '232': 'Dirección General de Financiamiento y Gestión de Riesgos',
-    '233': 'Dirección General de Agregación de Valor y Comercialización',
-    '235': 'Coordinación General de Eficiencia Hídrica Agroalimentaria',
-    '236': 'Dirección General de Eficiencia Hídrica en el Riego',
-    '237': 'Dirección General de Eficiencia Hídrica en el Temporal',
-    '240': 'Coordinación General de Innovación y Transición Agroecológica',
-    '241': 'Dirección General de Innovación',
-    '242': 'Dirección General de Transición Agroecológica',
-    '245': 'Coordinación General de Sustentabilidad y Resiliencia Climática',
-    '246': 'Dirección General de Sustentabilidad',
-    '247': 'Dirección General de Financiamiento Verde',
-    '250': 'Coordinación General de Operación Territorial',
-    '251': 'Dirección General de Integración Territorial de Programas',
+    '250': 'Unidad de Operación Territorial y Eficiencia Hídrica Agroalimentaria',
     '252': 'Dirección General de Intervención Territorial Estratégica',
-    # Oficinas de Representación
+    '253': 'Dirección General de Eficacia Hídrica en Riego y Temporal',
     '260': 'Oficina de Representación en Aguascalientes',
     '261': 'Oficina de Representación en Baja California',
     '262': 'Oficina de Representación en Baja California Sur',
@@ -313,23 +297,24 @@ DENOMINACIONES_2026 = {
     '290': 'Oficina de Representación en Yucatán',
     '291': 'Oficina de Representación en Zacatecas',
     '292': 'Oficina de Representación en la Región Lagunera',
-    # Unidad de Administración y Finanzas
     '500': 'Unidad de Administración y Finanzas',
     '510': 'Dirección General de Programación, Presupuesto y Finanzas',
     '511': 'Dirección General de Capital Humano y Desarrollo Organizacional',
     '512': 'Dirección General de Recursos Materiales, Inmuebles y Servicios',
     '513': 'Dirección General de Tecnologías de la Información y Comunicaciones',
-    # Coordinación General de Información, Inteligencia y Evaluación
-    '800': 'Coordinación General de Información, Inteligencia y Evaluación',
-    '810': 'Dirección General de Evaluación, Políticas y Programas',
-    '811': 'Dirección General del Servicio de Información Agroalimentaria y Pesquera',
-    '812': 'Dirección General de Planeación',
-    # Órganos Administrativos Desconcentrados
+    '900': 'Coordinación General de Producción, Comercialización, Sustentabilidad e Innovación',
+    '910': 'Unidad de Innovación, Sustentabilidad y Resiliencia Climática',
+    '911': 'Dirección General de Desarrollo e Innovación',
+    '912': 'Dirección General de Sustentabilidad y Resiliencia Climática',
+    '920': 'Unidad de Producción, Comercialización y Financiamiento',
+    '921': 'Dirección General de Producción Agrícola',
+    '922': 'Dirección General de Producción Ganadera, Pesquera y Acuícola',
+    '923': 'Dirección General de Precios, Ordenamiento Comercial y Valor Agregado',
+    '924': 'Dirección General de Financiamiento y Gestión de Riesgos',
     'B00': 'Servicio Nacional de Sanidad, Inocuidad y Calidad Agroalimentaria',
     'C00': 'Servicio Nacional de Inspección y Certificación de Semillas',
     'D00': 'Colegio Superior Agropecuario del Estado de Guerrero',
     'I00': 'Comisión Nacional de Acuacultura y Pesca',
-    # Entidades Paraestatales
     'A1I': 'Universidad Autónoma Chapingo',
     'AFU': 'Comité Nacional para el Desarrollo Sustentable de la Caña de Azúcar',
     'I6L': 'Fideicomiso de Riesgo Compartido',
@@ -340,23 +325,14 @@ DENOMINACIONES_2026 = {
     'JAL': 'Productora de Semillas para el Bienestar',
     'JBK': 'Productora Nacional de Biológicos Veterinarios',
     'RJL': 'Instituto Mexicano de Investigación en Pesca y Acuacultura Sustentables',
-    'VSS': 'Alimentación para el Bienestar, S.A. de C.V.',
+    'VSS': 'Alimentación para el Bienestar, S.A de C.V.',
     'VST': 'Leche para el Bienestar, S.A. de C.V.',
 }
 
-SECTOR_CENTRAL_2026 = [
-    '100', '110', '111', '112', '117',  # Secretaría
-    '200',  # Subsecretaría
-    '220', '221', '222',  # Bienestar para el Campo
-    '225', '226', '227', '228',  # Producción Agrícola y Ganadera
-    '230', '231', '232', '233',  # Comercialización y Financiamiento
-    '235', '236', '237',  # Eficiencia Hídrica
-    '240', '241', '242',  # Innovación y Transición Agroecológica
-    '245', '246', '247',  # Sustentabilidad y Resiliencia
-    '250', '251', '252',  # Operación Territorial
-    '500', '510', '511', '512', '513',  # Administración y Finanzas
-    '800', '810', '811', '812',  # Información, Inteligencia y Evaluación
-]
+SECTOR_CENTRAL_2026 = ['100', '110', '106', '107', '111', '112', '117', '119', '120', '200',
+                       '220', '221', '222', '250', '252', '253',
+                       '500', '510', '511', '512', '513',
+                       '900', '910', '911', '912', '920', '921', '922', '923', '924']
 
 OFICINAS_2026 = ['260', '261', '262', '263', '264', '265', '266', '267', '268', '269',
                  '270', '271', '272', '273', '274', '275', '276', '277', '278', '279',
