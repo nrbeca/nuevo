@@ -1,374 +1,289 @@
 # ============================================================================
-# PROCESADOR DE ARCHIVOS PARA DASHBOARD DE AUSTERIDAD
-# ============================================================================
-# 
-# Fuentes de datos (del archivo Tablero.xlsx):
-# - Tabla Cuenta Pública: Ejercido año anterior (con inflación)
-#   Concatenación: Partida + UR (ej: "21101100")
-# - Tabla SICOP: Original, Modificado, Ejercido Real del año actual
-#   Concatenación: UR + Partida (ej: "10021101")
-#
+# GENERADOR DE EXCEL - DASHBOARD DE AUSTERIDAD
 # ============================================================================
 
-import pandas as pd
-import numpy as np
+import io
 from datetime import date
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
 from config import (
-    round_like_excel, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
-    CUENTA_PUBLICA_2025
+    PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
+    formatear_fecha, obtener_ultimo_dia_habil
 )
 
 
-def procesar_cuenta_publica(df):
+def generar_excel_austeridad(datos_dashboard, ur_codigo, ur_nombre, año_anterior=2024, año_actual=2025):
     """
-    Procesa la Tabla de Cuenta Pública para obtener el ejercido del año anterior.
+    Genera el archivo Excel del Dashboard de Austeridad.
     
-    La tabla tiene la estructura (después de header):
-    - Concatenación: Partida + ID_UNIDAD (ej: "21101100")
-    - ID_UNIDAD: Unidad responsable original
-    - Nueva_UR: Nueva clave de UR (mapeo)
-    - Partida: Partida presupuestaria (5 dígitos)
-    - Suma de Ejercido con inflación: Monto ejercido con factor de inflación
-    
-    Para buscar: CONCATENAR(Partida, UR) → ej: "21101100"
+    Args:
+        datos_dashboard: Lista de dicts con datos por partida
+        ur_codigo: Código de la UR (ej: '100')
+        ur_nombre: Nombre de la UR (ej: 'Secretaría')
+        año_anterior: Año del ejercido anterior
+        año_actual: Año actual
     
     Returns:
-        dict: {concatenacion: ejercido} donde concatenacion = "PartidaUR"
+        bytes: Contenido del archivo Excel
     """
-    # Normalizar nombres de columnas
-    if len(df.columns) >= 5:
-        df.columns = ['Concatenación', 'ID_UNIDAD', 'Nueva_UR', 'Partida', 'Ejercido_Inflacion']
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Dashboard Austeridad"
     
-    # Eliminar filas de encabezado o totales
-    df = df[~df['Concatenación'].astype(str).str.contains('Concatenación|Total|general', na=False, case=False)]
+    # =========================================================================
+    # ESTILOS
+    # =========================================================================
     
-    # Convertir tipos
-    df['Ejercido_Inflacion'] = pd.to_numeric(df['Ejercido_Inflacion'], errors='coerce').fillna(0)
+    # Colores institucionales SADER
+    fill_vino = PatternFill(start_color='722F37', end_color='722F37', fill_type='solid')
+    fill_beige = PatternFill(start_color='E6D194', end_color='E6D194', fill_type='solid')
+    fill_gray = PatternFill(start_color='D9D9D6', end_color='D9D9D6', fill_type='solid')
+    fill_white = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
     
-    # Crear diccionario con concatenación Partida+UR como clave
-    # La concatenación ya viene en el formato correcto (PartidaUR)
-    resultado = {}
-    for _, row in df.iterrows():
-        concat = str(row['Concatenación']).strip()
-        ejercido = row['Ejercido_Inflacion']
-        # Acumular si hay duplicados
-        if concat in resultado:
-            resultado[concat] = round_like_excel(resultado[concat] + ejercido, 2)
-        else:
-            resultado[concat] = round_like_excel(ejercido, 2)
+    # Fuentes
+    font_header = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+    font_title = Font(name='Calibri', size=12, bold=True)
+    font_subtitle = Font(name='Calibri', size=11, bold=True)
+    font_data = Font(name='Calibri', size=10)
+    font_notes = Font(name='Calibri', size=9)
     
-    return resultado
-
-
-def procesar_sicop_austeridad(df):
-    """
-    Procesa el archivo SICOP diario (CSV crudo) para obtener Original, Modificado y Ejercido Real
-    para las partidas de austeridad.
+    # Bordes
+    border_thin = Border(
+        top=Side(style='thin'),
+        bottom=Side(style='thin'),
+        left=Side(style='thin'),
+        right=Side(style='thin')
+    )
+    border_none = Border()
     
-    El archivo SICOP tiene columnas como:
-    - ID_UNIDAD: Unidad responsable
-    - PARTIDA_ESPECIFICA: Partida presupuestaria (5 dígitos)
-    - ORIGINAL: Presupuesto original
-    - MODIFICADO_AUTORIZADO: Modificado anual bruto
-    - EJERCIDO: Ejercido real
+    # Alineaciones
+    align_center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    align_left = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    align_right = Alignment(horizontal='right', vertical='center')
     
-    La concatenación para búsqueda es: UR + Partida (ej: "10021101")
+    # Formatos numéricos
+    fmt_money = '#,##0.00'
+    fmt_pct = '0.00%'
     
-    Returns:
-        dict: {concatenacion: {'Original': x, 'Modificado': y, 'Ejercido': z}}
-              donde concatenacion = "URPartida"
-    """
-    # Verificar si es el archivo SICOP crudo o una tabla dinámica
-    if 'ID_UNIDAD' in df.columns and 'PARTIDA_ESPECIFICA' in df.columns:
-        # Es el archivo SICOP crudo
-        # Construir partida completa
-        df = df.copy()
+    # =========================================================================
+    # ANCHOS DE COLUMNA
+    # =========================================================================
+    
+    anchos = {
+        'A': 10,      # Partida
+        'B': 70,      # Denominación
+        'C': 18,      # Ejercido año anterior
+        'D': 14,      # Original
+        'E': 14,      # Modificado
+        'F': 14,      # Ejercido Real
+        'G': 18,      # Solicitud de pago
+        'H': 60,      # Nota
+        'I': 14,      # Avance anual
+    }
+    for col, ancho in anchos.items():
+        ws.column_dimensions[col].width = ancho
+    
+    # =========================================================================
+    # ENCABEZADOS
+    # =========================================================================
+    
+    # Obtener fecha actual
+    hoy = date.today()
+    ultimo_habil = obtener_ultimo_dia_habil(hoy)
+    
+    # Fila 1: Título con fecha
+    ws.merge_cells('A1:I1')
+    titulo = f'Estado del ejercicio del 1 de enero al {ultimo_habil.day} de {["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][ultimo_habil.month-1]} de {año_actual} de partidas sujetas a Austeridad'
+    ws['A1'] = titulo
+    ws['A1'].font = font_title
+    ws['A1'].alignment = align_center
+    ws.row_dimensions[1].height = 25
+    
+    # Fila 2: Subtítulo UR
+    ws.merge_cells('A2:I2')
+    ws['A2'] = f'{ur_codigo}.- {ur_nombre}'
+    ws['A2'].font = font_subtitle
+    ws['A2'].alignment = align_center
+    ws.row_dimensions[2].height = 20
+    
+    # Fila 3: vacía
+    ws.row_dimensions[3].height = 10
+    
+    # Fila 4: Título de sección
+    ws.merge_cells('A4:I4')
+    ws['A4'] = 'Partidas sujetas a Austeridad Republicana'
+    ws['A4'].font = font_subtitle
+    ws['A4'].alignment = align_left
+    ws.row_dimensions[4].height = 20
+    
+    # Fila 5: Primera fila de encabezados
+    # Partida, Denominación, Ejercicio fiscal (merge C-G), Nota, Avance anual
+    ws['A5'] = 'Partida'
+    ws['B5'] = 'Denominación'
+    ws.merge_cells('C5:G5')
+    ws['C5'] = 'Ejercicio fiscal'
+    ws['H5'] = 'Nota'
+    ws['I5'] = 'Avance anual'
+    
+    for col in ['A', 'B', 'C', 'H', 'I']:
+        ws[f'{col}5'].font = font_header
+        ws[f'{col}5'].fill = fill_vino
+        ws[f'{col}5'].alignment = align_center
+        ws[f'{col}5'].border = border_thin
+    # Aplicar estilo a celdas merged
+    for col in ['D', 'E', 'F', 'G']:
+        ws[f'{col}5'].fill = fill_vino
+        ws[f'{col}5'].border = border_thin
+    ws.row_dimensions[5].height = 20
+    
+    # Fila 6: Segunda fila de encabezados
+    # Vacío, Vacío, Ejercido en [año_anterior], [año_actual] (merge D-G), vacío, vacío
+    ws['A6'] = ''
+    ws['B6'] = ''
+    ws['C6'] = f'Ejercido en {año_anterior}'
+    ws.merge_cells('D6:G6')
+    ws['D6'] = str(año_actual)
+    ws['H6'] = ''
+    ws['I6'] = ''
+    
+    for col in ['A', 'B', 'C', 'D', 'H', 'I']:
+        ws[f'{col}6'].font = font_header
+        ws[f'{col}6'].fill = fill_vino
+        ws[f'{col}6'].alignment = align_center
+        ws[f'{col}6'].border = border_thin
+    for col in ['E', 'F', 'G']:
+        ws[f'{col}6'].fill = fill_vino
+        ws[f'{col}6'].border = border_thin
+    ws.row_dimensions[6].height = 20
+    
+    # Fila 7: Tercera fila de encabezados (subcolumnas del año actual)
+    ws['A7'] = ''
+    ws['B7'] = ''
+    ws['C7'] = ''
+    ws['D7'] = 'Original'
+    ws['E7'] = 'Modificado'
+    ws['F7'] = 'Ejercido Real'
+    ws['G7'] = 'Solicitud de pago por parte de las UR'
+    ws['H7'] = ''
+    ws['I7'] = ''
+    
+    for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']:
+        ws[f'{col}7'].font = font_header
+        ws[f'{col}7'].fill = fill_vino
+        ws[f'{col}7'].alignment = align_center
+        ws[f'{col}7'].border = border_thin
+    ws.row_dimensions[7].height = 35
+    
+    # Merge vertical para encabezados
+    ws.merge_cells('A5:A7')
+    ws.merge_cells('B5:B7')
+    ws.merge_cells('C6:C7')
+    ws.merge_cells('H5:H7')
+    ws.merge_cells('I5:I7')
+    
+    # =========================================================================
+    # DATOS CON FÓRMULAS
+    # =========================================================================
+    
+    fila = 8
+    for dato in datos_dashboard:
+        # A: Partida
+        ws.cell(row=fila, column=1, value=dato['Partida'])
+        ws.cell(row=fila, column=1).font = font_data
+        ws.cell(row=fila, column=1).alignment = align_center
+        ws.cell(row=fila, column=1).border = border_thin
         
-        # Crear partida completa de 5 dígitos
-        df['Partida'] = (
-            df['CAPITULO'].astype(int) * 10000 +
-            df['CONCEPTO'].astype(int) * 1000 +
-            df['PARTIDA_GENERICA'].astype(int) * 100 +
-            df['PARTIDA_ESPECIFICA'].astype(int)
+        # B: Denominación
+        ws.cell(row=fila, column=2, value=dato['Denominacion'])
+        ws.cell(row=fila, column=2).font = font_data
+        ws.cell(row=fila, column=2).alignment = align_left
+        ws.cell(row=fila, column=2).border = border_thin
+        
+        # C: Ejercido Anterior
+        ws.cell(row=fila, column=3, value=dato['Ejercido_Anterior'])
+        ws.cell(row=fila, column=3).font = font_data
+        ws.cell(row=fila, column=3).number_format = fmt_money
+        ws.cell(row=fila, column=3).alignment = align_right
+        ws.cell(row=fila, column=3).border = border_thin
+        
+        # D: Original
+        ws.cell(row=fila, column=4, value=dato['Original'])
+        ws.cell(row=fila, column=4).font = font_data
+        ws.cell(row=fila, column=4).number_format = fmt_money
+        ws.cell(row=fila, column=4).alignment = align_right
+        ws.cell(row=fila, column=4).border = border_thin
+        
+        # E: Modificado
+        ws.cell(row=fila, column=5, value=dato['Modificado'])
+        ws.cell(row=fila, column=5).font = font_data
+        ws.cell(row=fila, column=5).number_format = fmt_money
+        ws.cell(row=fila, column=5).alignment = align_right
+        ws.cell(row=fila, column=5).border = border_thin
+        
+        # F: Ejercido Real
+        ws.cell(row=fila, column=6, value=dato['Ejercido_Real'])
+        ws.cell(row=fila, column=6).font = font_data
+        ws.cell(row=fila, column=6).number_format = fmt_money
+        ws.cell(row=fila, column=6).alignment = align_right
+        ws.cell(row=fila, column=6).border = border_thin
+        
+        # G: Solicitud de pago (vacío para llenado manual)
+        ws.cell(row=fila, column=7, value='')
+        ws.cell(row=fila, column=7).font = font_data
+        ws.cell(row=fila, column=7).number_format = fmt_money
+        ws.cell(row=fila, column=7).alignment = align_right
+        ws.cell(row=fila, column=7).border = border_thin
+        
+        # H: Nota (FÓRMULA)
+        # =SI(Y(F>C),"Monto ejercido...",SI(Y(C=0,E>0),"Solicitar...",SI(...)))
+        formula_nota = (
+            f'=IF(AND(F{fila}>C{fila},C{fila}>0),"Monto ejercido real mayor al presupuesto ejercido en {año_anterior}.",'
+            f'IF(AND(C{fila}=0,E{fila}>0),"Solicitar dictamen antes de ejercer recursos en esta partida.",'
+            f'IF(AND(C{fila}=0,F{fila}>0),"Monto ejercido real mayor al presupuesto ejercido en {año_anterior}.",'
+            f'IF(AND(F{fila}+G{fila}>C{fila},C{fila}>0),"Solicitar dictamen antes de ejercer recursos en esta partida.",'
+            f'IF(AND(C{fila}=0,E{fila}=0,F{fila}=0),"",'
+            f'IF(AND(E{fila}>C{fila},F{fila}<C{fila}),"Solicitar dictamen antes de sobrepasar el monto ejercido en {año_anterior}.",'
+            f'"Sin observaciones."))))))'
         )
+        ws.cell(row=fila, column=8, value=formula_nota)
+        ws.cell(row=fila, column=8).font = font_notes
+        ws.cell(row=fila, column=8).alignment = align_left
+        ws.cell(row=fila, column=8).border = border_thin
         
-        # Filtrar solo partidas de austeridad
-        df = df[df['Partida'].isin(PARTIDAS_AUSTERIDAD)]
+        # I: Avance anual (FÓRMULA)
+        # =SI(Y(C=0,(F>0)+G),"Incremento en presupuesto",(SI.ERROR(((F+G)/C),"")))
+        formula_avance = (
+            f'=IF(AND(C{fila}=0,OR(F{fila}>0,G{fila}>0)),"Incremento",'
+            f'IFERROR((F{fila}+G{fila})/C{fila},""))'
+        )
+        ws.cell(row=fila, column=9, value=formula_avance)
+        ws.cell(row=fila, column=9).font = font_data
+        ws.cell(row=fila, column=9).number_format = fmt_pct
+        ws.cell(row=fila, column=9).alignment = align_center
+        ws.cell(row=fila, column=9).border = border_thin
         
-        # Convertir columnas numéricas
-        for col in ['ORIGINAL', 'MODIFICADO_AUTORIZADO', 'EJERCIDO']:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        # Altura de fila
+        ws.row_dimensions[fila].height = 28
         
-        # Agrupar por UR + Partida
-        df['Concatenacion'] = df['ID_UNIDAD'].astype(str) + df['Partida'].astype(str)
-        
-        # Sumar por concatenación
-        grouped = df.groupby('Concatenacion').agg({
-            'ORIGINAL': 'sum',
-            'MODIFICADO_AUTORIZADO': 'sum',
-            'EJERCIDO': 'sum'
-        }).reset_index()
-        
-        # Crear diccionario de resultados
-        resultado = {}
-        for _, row in grouped.iterrows():
-            concat = str(row['Concatenacion']).strip()
-            resultado[concat] = {
-                'Original': round_like_excel(row['ORIGINAL'], 2),
-                'Modificado': round_like_excel(row['MODIFICADO_AUTORIZADO'], 2),
-                'Ejercido': round_like_excel(row['EJERCIDO'], 2),
-            }
-        
-        return resultado
+        fila += 1
     
-    else:
-        # Asumir que es una tabla dinámica (formato anterior)
-        # Normalizar nombres de columnas
-        if len(df.columns) >= 4:
-            df.columns = ['Concatenación', 'Original', 'Modificado', 'Ejercido_Real']
-        
-        # Eliminar filas de encabezado o totales
-        df = df[~df['Concatenación'].astype(str).str.contains('Etiqueta|Total|general', na=False, case=False)]
-        
-        # Convertir tipos
-        df['Original'] = pd.to_numeric(df['Original'], errors='coerce').fillna(0)
-        df['Modificado'] = pd.to_numeric(df['Modificado'], errors='coerce').fillna(0)
-        df['Ejercido_Real'] = pd.to_numeric(df['Ejercido_Real'], errors='coerce').fillna(0)
-        
-        # Crear diccionario con concatenación UR+Partida como clave
-        resultado = {}
-        for _, row in df.iterrows():
-            concat = str(row['Concatenación']).strip()
-            resultado[concat] = {
-                'Original': round_like_excel(row['Original'], 2),
-                'Modificado': round_like_excel(row['Modificado'], 2),
-                'Ejercido': round_like_excel(row['Ejercido_Real'], 2),
-            }
-        
-        return resultado
-
-
-def calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago=0):
-    """
-    Calcula la nota/observación para una partida.
+    # =========================================================================
+    # FUENTE
+    # =========================================================================
     
-    Lógica de Excel:
-    =SI(Y(F>C),"Monto ejercido real mayor al presupuesto ejercido en 2024.",
-      SI(Y(C=0,E>0),"Solicitar dictamen antes de ejercer recursos en esta partida.",
-        SI(Y(C=0,F>0),"Monto ejercido real mayor al presupuesto ejercido en 2024.",
-          SI(Y(F+G>C),"Solicitar dictamen antes de ejercer recursos en esta partida.",
-            SI(Y(C+E+F=0),"",
-              SI(Y(E>C,F<C),"Solicitar dictamen antes de sobrepasar el monto ejercido en 2024.",
-                "Sin observaciones."))))))
+    fila += 1
+    ws.merge_cells(f'A{fila}:I{fila}')
+    ws[f'A{fila}'] = 'Fuente: SICOP'
+    ws[f'A{fila}'].font = Font(name='Calibri', size=9)
+    ws[f'A{fila}'].alignment = align_left
     
-    Donde:
-    C = Ejercido año anterior (2024)
-    E = Modificado
-    F = Ejercido Real
-    G = Solicitud de pago
+    # =========================================================================
+    # GUARDAR
+    # =========================================================================
     
-    Returns:
-        str o None
-    """
-    C = ejercido_anterior
-    E = modificado
-    F = ejercido_real
-    G = solicitud_pago
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
     
-    # Condición 1: F > C → Monto ejercido real mayor al presupuesto ejercido en 2024
-    if F > C and C > 0:
-        return "Monto ejercido real mayor al presupuesto ejercido en 2024."
-    
-    # Condición 2: C = 0 y E > 0 → Solicitar dictamen antes de ejercer
-    if C == 0 and E > 0:
-        return "Solicitar dictamen antes de ejercer recursos en esta partida."
-    
-    # Condición 3: C = 0 y F > 0 → Monto ejercido real mayor
-    if C == 0 and F > 0:
-        return "Monto ejercido real mayor al presupuesto ejercido en 2024."
-    
-    # Condición 4: F + G > C → Solicitar dictamen antes de ejercer
-    if (F + G) > C and C > 0:
-        return "Solicitar dictamen antes de ejercer recursos en esta partida."
-    
-    # Condición 5: C + E + F = 0 → vacío
-    if C == 0 and E == 0 and F == 0:
-        return None
-    
-    # Condición 6: E > C y F < C → Solicitar dictamen antes de sobrepasar
-    if E > C and F < C:
-        return "Solicitar dictamen antes de sobrepasar el monto ejercido en 2024."
-    
-    # Default: Sin observaciones
-    return "Sin observaciones."
-
-
-def calcular_avance_anual(ejercido_anterior, ejercido_real, solicitud_pago=0):
-    """
-    Calcula el porcentaje de avance anual.
-    
-    Fórmula Excel:
-    =SI(Y(C=0,(F>0)+G),"Incremento en presupuesto",(SI.ERROR(((F+G)/C),"")))
-    
-    Donde:
-    C = Ejercido año anterior
-    F = Ejercido Real
-    G = Solicitud de pago
-    
-    Returns:
-        float, str o None
-    """
-    C = ejercido_anterior
-    F = ejercido_real
-    G = solicitud_pago
-    
-    # Si C = 0 y (F > 0 o G > 0) → "Incremento en presupuesto"
-    if C == 0 and (F > 0 or G > 0):
-        return "Incremento en presupuesto"
-    
-    # Si C = 0 → vacío
-    if C == 0:
-        return None
-    
-    # Calcular porcentaje
-    return round_like_excel((F + G) / C, 6)
-
-
-def generar_dashboard_austeridad(datos_cp, datos_sicop, ur_filtro):
-    """
-    Genera los datos para el Dashboard de Austeridad de una UR específica.
-    
-    Args:
-        datos_cp: Resultado de procesar_cuenta_publica() - dict {PartidaUR: ejercido}
-                  O None para usar CUENTA_PUBLICA_2025 precargado
-        datos_sicop: Resultado de procesar_sicop_austeridad() - dict {URPartida: {Original, Modificado, Ejercido}}
-        ur_filtro: UR a filtrar (ej: '100')
-    
-    Returns:
-        list: Lista de dicts con los datos de cada partida
-    """
-    # Usar datos precargados si no se proporcionan
-    if datos_cp is None:
-        datos_cp = CUENTA_PUBLICA_2025
-    
-    resultado = []
-    
-    for partida in PARTIDAS_AUSTERIDAD:
-        # Concatenaciones para búsqueda
-        # Cuenta Pública: Partida + UR (ej: "21101100")
-        concat_cp = f"{partida}{ur_filtro}"
-        # SICOP: UR + Partida (ej: "10021101")
-        concat_sicop = f"{ur_filtro}{partida}"
-        
-        # Ejercido año anterior (Cuenta Pública)
-        ejercido_anterior = datos_cp.get(concat_cp, 0)
-        
-        # Año actual (SICOP)
-        sicop_data = datos_sicop.get(concat_sicop, {'Original': 0, 'Modificado': 0, 'Ejercido': 0})
-        original = sicop_data['Original']
-        modificado = sicop_data['Modificado']
-        ejercido_real = sicop_data['Ejercido']
-        
-        # Solicitud de pago (se deja en 0, es input manual)
-        solicitud_pago = 0
-        
-        # Calcular nota y avance
-        nota = calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago)
-        avance = calcular_avance_anual(ejercido_anterior, ejercido_real, solicitud_pago)
-        
-        resultado.append({
-            'Partida': partida,
-            'Denominacion': DENOMINACIONES_AUSTERIDAD.get(partida, ''),
-            'Ejercido_Anterior': ejercido_anterior,
-            'Original': original,
-            'Modificado': modificado,
-            'Ejercido_Real': ejercido_real,
-            'Solicitud_Pago': solicitud_pago,
-            'Nota': nota,
-            'Avance_Anual': avance,
-        })
-    
-    return resultado
-
-
-def generar_dashboard_austeridad_desde_sicop(datos_sicop, ur_filtro):
-    """
-    Genera el Dashboard de Austeridad usando solo datos del SICOP diario
-    y los datos precargados de Cuenta Pública 2025.
-    
-    Args:
-        datos_sicop: Resultado de procesar_sicop_austeridad() - dict {URPartida: {Original, Modificado, Ejercido}}
-        ur_filtro: UR a filtrar (ej: '100')
-    
-    Returns:
-        list: Lista de dicts con los datos de cada partida
-    """
-    return generar_dashboard_austeridad(None, datos_sicop, ur_filtro)
-
-
-def obtener_urs_disponibles_cp(datos_cp):
-    """
-    Obtiene la lista de URs disponibles en Cuenta Pública.
-    
-    La concatenación es PartidaUR, así que extraemos los últimos 3 caracteres
-    para URs de 3 dígitos o lo que reste después de la partida de 5 dígitos.
-    
-    Returns:
-        list: Lista de URs únicas ordenadas
-    """
-    urs = set()
-    for concat in datos_cp.keys():
-        # La partida es de 5 dígitos, el resto es la UR
-        if len(concat) > 5:
-            ur = concat[5:]  # Todo después de los 5 dígitos de partida
-            urs.add(ur)
-    
-    # Separar numéricas de alfanuméricas
-    urs_num = sorted([ur for ur in urs if ur.isdigit()], key=lambda x: int(x))
-    urs_alpha = sorted([ur for ur in urs if not ur.isdigit()])
-    
-    return urs_num + urs_alpha
-
-
-def obtener_urs_disponibles_sicop(datos_sicop):
-    """
-    Obtiene la lista de URs disponibles en SICOP.
-    
-    La concatenación es URPartida, así que extraemos todo menos los últimos 5 dígitos.
-    
-    Returns:
-        list: Lista de URs únicas ordenadas
-    """
-    urs = set()
-    for concat in datos_sicop.keys():
-        # La partida es de 5 dígitos al final
-        if len(concat) > 5:
-            ur = concat[:-5]  # Todo antes de los últimos 5 dígitos
-            urs.add(ur)
-    
-    # Separar numéricas de alfanuméricas
-    urs_num = sorted([ur for ur in urs if ur.isdigit()], key=lambda x: int(x))
-    urs_alpha = sorted([ur for ur in urs if not ur.isdigit()])
-    
-    return urs_num + urs_alpha
-
-
-def obtener_urs_disponibles(datos_cp, datos_sicop):
-    """
-    Obtiene la lista de URs disponibles en ambas fuentes (intersección).
-    
-    Returns:
-        list: Lista de URs ordenadas que existen en ambas fuentes
-    """
-    urs_cp = set(obtener_urs_disponibles_cp(datos_cp))
-    urs_sicop = set(obtener_urs_disponibles_sicop(datos_sicop))
-    
-    # Usar unión para mostrar todas las URs disponibles
-    urs = urs_cp.union(urs_sicop)
-    
-    # Separar numéricas de alfanuméricas
-    urs_num = sorted([ur for ur in urs if ur.isdigit()], key=lambda x: int(x))
-    urs_alpha = sorted([ur for ur in urs if not ur.isdigit()])
-    
-    return urs_num + urs_alpha
+    return output.getvalue()
