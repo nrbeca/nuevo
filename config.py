@@ -2374,3 +2374,4 @@ def obtener_pasivos_ur(ur_codigo, usar_2026=True):
         'Pagado': round(total_pagado, 2),
         'Pasivo': round(total_pasivo, 2),
     }
+    }
