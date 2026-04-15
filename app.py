@@ -1,4 +1,3 @@
-
 """
 SADER - Sistema de Reportes Presupuestarios
 Versión con soporte simultáneo MAP/SICOP
@@ -783,9 +782,10 @@ elif pagina == " Ver MAP":
         texto_periodo = congelados.get('textos_periodo', {}).get(prog, '')
         
         if valor_anual > 0 or valor_periodo > 0:
-            nota = f"{nota_num}/ El presupuesto modificado incluye un monto anual de ${valor_anual:,.2f} ({texto_anual}), de recursos congelados."
+            # Escapar $ para evitar interpretación LaTeX en Streamlit
+            nota = f"{nota_num}/ El presupuesto modificado incluye un monto anual de \\${valor_anual:,.2f} ({texto_anual}), de recursos congelados."
             if valor_periodo > 0:
-                nota += f" Y un monto al periodo de ${valor_periodo:,.2f} ({texto_periodo}), de recursos congelados."
+                nota += f" Y un monto al periodo de \\${valor_periodo:,.2f} ({texto_periodo}), de recursos congelados."
             st.markdown(nota)
         else:
             st.markdown(f"{nota_num}/ Sin recursos congelados para este programa.")
@@ -965,11 +965,11 @@ elif pagina == " Ver SICOP":
         
         cong_anual = congelados_sicop.get('anual', 0)
         texto_anual = congelados_sicop.get('texto_anual', '')
-        st.markdown(f"2/ El Presupuesto Modificado Anual no incluye ${cong_anual:,.2f} ({texto_anual}), recursos congelados.")
+        st.markdown(f"2/ El Presupuesto Modificado Anual no incluye \\${cong_anual:,.2f} ({texto_anual}), recursos congelados.")
         
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
-        st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye ${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
+        st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
         
         # Nota 4: COP 62 y 67 no considerados - usar datos del procesador
         cop_excluidos = resultados.get('cop_excluidos', {})
@@ -989,11 +989,11 @@ elif pagina == " Ver SICOP":
         if cop62.get('monto', 0) > 0:
             urs_62 = ', '.join(str(u) for u in cop62.get('urs', ['120'])) if cop62.get('urs') else '120'
             texto_62 = cop62.get('texto', numero_a_letras_mx(cop62['monto']))
-            partes.append(f"COP 62 la cantidad de ${cop62['monto']:,.2f} ({texto_62}) esto en la UR {urs_62}")
+            partes.append(f"COP 62 la cantidad de \\${cop62['monto']:,.2f} ({texto_62}) esto en la UR {urs_62}")
         if cop67.get('monto', 0) > 0:
             urs_67 = ' y '.join(str(u) for u in cop67.get('urs', ['512', '513'])) if cop67.get('urs') else '512 y 513'
             texto_67 = cop67.get('texto', numero_a_letras_mx(cop67['monto']))
-            partes.append(f"COP 67 la cantidad de ${cop67['monto']:,.2f} ({texto_67}) esto en las UR {urs_67}")
+            partes.append(f"COP 67 la cantidad de \\${cop67['monto']:,.2f} ({texto_67}) esto en las UR {urs_67}")
         
         if partes:
             nota_cop += '; y en '.join(partes) + "."
@@ -1009,13 +1009,17 @@ elif pagina == " Ver SICOP":
         capitulos_por_ur = resultados.get('capitulos_por_ur', {})
         partidas_por_ur = resultados.get('partidas_por_ur', {})
         
-        # Selector de UR
+        # Selector de UR - usar DENOMINACIONES_2026 directamente
         urs_disponibles = sorted([ur for ur in config.get('sector_central', []) + 
                                    config.get('oficinas', []) + 
                                    config.get('organos_desconcentrados', []) + 
                                    config.get('entidades_paraestatales', [])])
-        denominaciones = config.get('denominaciones', {})
-        urs_con_nombre = [f"{ur} - {denominaciones.get(ur, ur)}" for ur in urs_disponibles]
+        
+        # Usar DENOMINACIONES_2026 importado directamente para nombres correctos
+        urs_con_nombre = []
+        for ur in urs_disponibles:
+            nombre = DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))
+            urs_con_nombre.append(f"{ur} - {nombre}")
         
         ur_seleccionada = st.selectbox("Selecciona una Unidad Responsable:", options=urs_con_nombre, index=0, key="ur_dash_ppto")
         ur_codigo = ur_seleccionada.split(" - ")[0]
@@ -1032,7 +1036,9 @@ elif pagina == " Ver SICOP":
             meses_esp = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
             fecha_titulo = f"{hoy.day} de {meses_esp[hoy.month - 1]} de {hoy.year}"
             st.markdown(f"### Estado del ejercicio del 1 de enero al {fecha_titulo}")
-            st.markdown(f"**{ur_codigo}.- {denominaciones.get(ur_codigo, ur_codigo)}**")
+            # Usar DENOMINACIONES_2026 para nombre correcto
+            ur_nombre_titulo = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
+            st.markdown(f"**{ur_codigo}.- {ur_nombre_titulo}**")
             
             # KPIs Fila 1
             c1, c2, c3, c4 = st.columns(4)
