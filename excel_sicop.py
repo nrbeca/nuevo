@@ -11,7 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.drawing.image import Image as OpenpyxlImage
 
 from config import (
-    formatear_fecha, obtener_ultimo_dia_habil
+    formatear_fecha, obtener_ultimo_dia_habil, numero_a_letras_mx
 )
 
 # Logo SADER en Base64
@@ -278,7 +278,7 @@ def generar_excel_sicop(resultados):
     fila += 1
     
     ws.merge_cells(f'A{fila}:J{fila}')
-    cell_nota1 = ws.cell(row=fila, column=1, value='1/ No Incluye el capítulo 1000 "Servicios Personales" ni partida 39801 "Impuesto Sobre Nóminas".')
+    cell_nota1 = ws.cell(row=fila, column=1, value='1/ No Incluye el capítulo 1000 "Servicios personales" ni partida 39801 "Impuesto sobre nóminas".')
     cell_nota1.font = font_notes
     cell_nota1.fill = fill_white
     cell_nota1.border = border_none
@@ -308,28 +308,29 @@ def generar_excel_sicop(resultados):
     
     # Nota 4: COP 62 y 67 no considerados
     cop_excluidos = resultados.get('cop_excluidos', {})
-    cop62 = cop_excluidos.get('cop_62', {'monto': 0, 'urs': [], 'texto': ''})
-    cop67 = cop_excluidos.get('cop_67', {'monto': 0, 'urs': [], 'texto': ''})
-    
-    partes_nota4 = []
-    if cop62.get('monto', 0) > 0:
-        urs_62 = ', '.join(str(u) for u in cop62.get('urs', ['120'])) if cop62.get('urs') else '120'
-        texto_62 = cop62.get('texto', '')
-        partes_nota4.append(f"COP 62 la cantidad de ${cop62['monto']:,.2f} ({texto_62}) esto en la UR {urs_62}")
-    if cop67.get('monto', 0) > 0:
-        urs_67 = ' y '.join(str(u) for u in cop67.get('urs', ['512', '513'])) if cop67.get('urs') else '512 y 513'
-        texto_67 = cop67.get('texto', '')
-        partes_nota4.append(f"COP 67 la cantidad de ${cop67['monto']:,.2f} ({texto_67}) esto en las UR {urs_67}")
-    
-    if partes_nota4:
-        nota_4_texto = "4/ No se están considerando montos de los Controles Operativos (COP): " + '; y en '.join(partes_nota4) + "."
-        ws.merge_cells(f'A{fila}:J{fila}')
-        cell_nota4 = ws.cell(row=fila, column=1, value=nota_4_texto)
-        cell_nota4.font = font_notes
-        cell_nota4.fill = fill_white
-        cell_nota4.border = border_none
-        cell_nota4.alignment = align_left
-        ws.row_dimensions[fila].height = 50
+    if cop_excluidos:
+        cop62 = cop_excluidos.get('cop_62', {'monto': 0, 'urs': [], 'texto': ''})
+        cop67 = cop_excluidos.get('cop_67', {'monto': 0, 'urs': [], 'texto': ''})
+        
+        if cop62.get('monto', 0) > 0 or cop67.get('monto', 0) > 0:
+            partes_nota4 = []
+            if cop62.get('monto', 0) > 0:
+                urs_62 = ', '.join(str(u) for u in cop62.get('urs', [])) if cop62.get('urs') else ''
+                texto_62 = cop62.get('texto', numero_a_letras_mx(cop62['monto']))
+                partes_nota4.append(f"COP 62 la cantidad de ${cop62['monto']:,.2f} ({texto_62}) esto en la UR {urs_62}")
+            if cop67.get('monto', 0) > 0:
+                urs_67 = ' y '.join(str(u) for u in cop67.get('urs', [])) if cop67.get('urs') else ''
+                texto_67 = cop67.get('texto', numero_a_letras_mx(cop67['monto']))
+                partes_nota4.append(f"COP 67 la cantidad de ${cop67['monto']:,.2f} ({texto_67}) esto en las UR {urs_67}")
+            
+            nota_4_texto = "4/ No se están considerando montos de los Controles Operativos (COP): " + "; y en ".join(partes_nota4) + "."
+            ws.merge_cells(f'A{fila}:J{fila}')
+            cell_nota4 = ws.cell(row=fila, column=1, value=nota_4_texto)
+            cell_nota4.font = font_notes
+            cell_nota4.fill = fill_white
+            cell_nota4.border = border_none
+            cell_nota4.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            ws.row_dimensions[fila].height = 50
     
     # =========================================================================
     # GUARDAR A BYTES
