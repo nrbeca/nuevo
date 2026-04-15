@@ -62,27 +62,6 @@ def mapear_ur(id_unidad, config):
     return id_str
 
 
-def get_co_filter_for_ur(ur, config, for_original=False):
-    """
-    Obtiene el filtro de Control Operativo según el tipo de UR.
-    
-    Para ORIGINAL: siempre CO == 0
-    Para MODIFICADO y EJERCIDO:
-        - Sector Central y Oficinas: CO IN (0, 50, 51)
-        - Órganos Desconcentrados y Entidades Paraestatales: CO IN (0, 50)
-    """
-    if for_original:
-        return [0]
-    
-    if ur in config['entidades_paraestatales'] or ur == 'RJL':
-        return [0, 50]
-    elif ur in config['organos_desconcentrados']:
-        return [0, 50]
-    else:
-        # Sector Central y Oficinas
-        return [0, 50, 51]
-
-
 def procesar_sicop(df, filename):
     """
     Procesa el archivo SICOP y devuelve los resultados calculados.
@@ -93,8 +72,6 @@ def procesar_sicop(df, filename):
         - 'subtotales': dict con subtotales por sección
         - 'congelados': dict con congelados anual y periodo
         - 'totales': dict con totales generales
-        - 'capitulos_por_ur': dict con datos por capítulo para cada UR
-        - 'partidas_por_ur': dict con top partidas para cada UR
         - 'metadata': información del archivo
     """
     # Detectar fecha y configuración
@@ -107,8 +84,6 @@ def procesar_sicop(df, filename):
     # Aplicar mapeo de URs
     df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
     df['Nueva UR'] = df['ID_UNIDAD'].apply(lambda x: mapear_ur(x, config))
-    # Asegurar que Nueva UR sea siempre string
-    df['Nueva UR'] = df['Nueva UR'].astype(str)
     
     # Calcular Partida
     df['Partida'] = (
@@ -129,17 +104,45 @@ def procesar_sicop(df, filename):
     urs_validas = (config['sector_central'] + config['oficinas'] + 
                    config['organos_desconcentrados'] + config['entidades_paraestatales'])
     
-    # Guardar copia para congelados y COP 62/67 antes de filtrar
+    # Guardar copia para congelados antes de filtrar
     df_para_congelados = df.copy()
-    df_para_cop_62_67 = df.copy()
     
-    # Aplicar filtros - EXCLUIR COP 62 y 67 además de los otros
-    # Convertir urs_validas a strings para comparación consistente
-    urs_validas_str = [str(ur) for ur in urs_validas]
-    df = df[df['Nueva UR'].isin(urs_validas_str)].copy()
+    # =========================================================================
+    # CALCULAR COP 62 y COP 67 ANTES DE EXCLUIRLOS
+    # (estos montos no se consideran en el cálculo principal)
+    # =========================================================================
+    df_filtrado_base = df[df['Nueva UR'].astype(str).isin(urs_validas)].copy()
+    df_filtrado_base = df_filtrado_base[~df_filtrado_base['Partida'].isin([39801, 39810])]
+    df_filtrado_base = df_filtrado_base[~df_filtrado_base['CAPITULO'].isin([1, 7])]
+    
+    # COP 62
+    df_cop62 = df_filtrado_base[df_filtrado_base['CONTROL_OPERATIVO'] == 62]
+    monto_cop62 = round_like_excel(df_cop62['EJERCIDO_REAL'].sum(), 2) if not df_cop62.empty else 0
+    urs_cop62 = df_cop62['Nueva UR'].astype(str).unique().tolist() if not df_cop62.empty else []
+    
+    # COP 67
+    df_cop67 = df_filtrado_base[df_filtrado_base['CONTROL_OPERATIVO'] == 67]
+    monto_cop67 = round_like_excel(df_cop67['EJERCIDO_REAL'].sum(), 2) if not df_cop67.empty else 0
+    urs_cop67 = df_cop67['Nueva UR'].astype(str).unique().tolist() if not df_cop67.empty else []
+    
+    cop_excluidos = {
+        'cop_62': {
+            'monto': monto_cop62,
+            'urs': urs_cop62,
+            'texto': numero_a_letras_mx(monto_cop62) if monto_cop62 > 0 else ''
+        },
+        'cop_67': {
+            'monto': monto_cop67,
+            'urs': urs_cop67,
+            'texto': numero_a_letras_mx(monto_cop67) if monto_cop67 > 0 else ''
+        }
+    }
+    # =========================================================================
+    
+    # Aplicar filtros
+    df = df[df['Nueva UR'].astype(str).isin(urs_validas)].copy()
     df = df[~df['Partida'].isin([39801, 39810])].copy()
     df = df[~df['CAPITULO'].isin([1, 7])].copy()
-    # Filtro de CONTROL_OPERATIVO: incluir 0, 10, 40, 50, 51 pero EXCLUIR 62 y 67
     df = df[df['CONTROL_OPERATIVO'].isin([0, 10, 40, 50, 51])].copy()
     
     # Calcular por UR
@@ -158,13 +161,16 @@ def procesar_sicop(df, filename):
         df_ur['Modificado_neto'] = df_ur['MODIFICADO_AUTORIZADO'] - df_ur['RESERVAS']
         
         # ORIGINAL: Suma donde CO=0
-        co_filter_original = get_co_filter_for_ur(ur, config, for_original=True)
-        df_co0 = df_ur[df_ur['CONTROL_OPERATIVO'].isin(co_filter_original)]
+        df_co0 = df_ur[df_ur['CONTROL_OPERATIVO'] == 0]
         original = round_like_excel(df_co0['ORIGINAL'].sum(), 2)
         
         # MODIFICADO: Filtros de CO según tipo de UR
-        co_filter = get_co_filter_for_ur(ur, config, for_original=False)
-        df_modificado = df_ur[df_ur['CONTROL_OPERATIVO'].isin(co_filter)]
+        if ur in config['entidades_paraestatales'] or ur == 'RJL':
+            df_modificado = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50])]
+        elif ur in config['organos_desconcentrados']:
+            df_modificado = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50])]
+        else:
+            df_modificado = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50, 51])]
         
         # MODIFICADO ANUAL
         modificado_anual = round_like_excel(df_modificado['Modificado_neto'].sum(), 2)
@@ -181,8 +187,14 @@ def procesar_sicop(df, filename):
             cong_periodo = df_modificado[cols_res].sum(axis=1).sum() if cols_res else 0
             modificado_periodo = round_like_excel(mod_bruto - cong_periodo, 2)
         
-        # EJERCIDO: mismo filtro que modificado
-        df_ejercido = df_ur[df_ur['CONTROL_OPERATIVO'].isin(co_filter)]
+        # EJERCIDO
+        if ur in config['entidades_paraestatales'] or ur == 'RJL':
+            df_ejercido = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50])]
+        elif ur in config['organos_desconcentrados']:
+            df_ejercido = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50])]
+        else:
+            df_ejercido = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50, 51])]
+        
         ejercido = round_like_excel(df_ejercido['EJERCIDO_REAL'].sum(), 2)
         
         resultados_ur[ur] = {
@@ -256,162 +268,129 @@ def procesar_sicop(df, filename):
     
     # Catalogo de partidas (denominaciones)
     catalogo_partidas = {
-        21101: 'Materiales y Útiles de Oficina',
-        21401: 'Materiales y Útiles Consumibles para el Procesamiento en Equipos y Bienes Informáticos',
-        21501: 'Material de Apoyo Informativo',
-        22102: 'Productos Alimenticios para Personas Derivado de la Prestación de Servicios Públicos',
-        22103: 'Productos Alimenticios para el Personal que Realiza Labores en Campo o de Supervisión',
-        22104: 'Productos Alimenticios para el Personal en las Instalaciones de las Dependencias y Entidades',
-        22106: 'Productos Alimenticios para el Personal Derivado de Actividades Extraordinarias',
-        22301: 'Utensilios para el Servicio de Alimentación',
-        26102: 'Combustibles, Lubricantes y Aditivos para Vehículos Destinados a Servicios Públicos',
-        26103: 'Combustibles, Lubricantes y Aditivos para Vehículos Destinados a Servicios Administrativos',
-        26104: 'Combustibles, Lubricantes y Aditivos para Vehículos Asignados a Servidores Públicos',
-        26105: 'Combustibles, Lubricantes y Aditivos para Maquinaria y Equipo de Producción',
-        31701: 'Servicios de Conducción de Señales Analógicas y Digitales',
-        33104: 'Otras Asesorías para la Operación de Programas',
-        33302: 'Servicios Estadísticos y Geográficos',
-        33401: 'Servicios para Capacitación a Servidores Públicos',
-        33602: 'Otros Servicios Comerciales',
-        33801: 'Servicios de Vigilancia',
-        33901: 'Subcontratación de Servicios con Terceros',
-        35101: 'Mantenimiento y Conservación de Inmuebles para la Prestación de Servicios Administrativos',
-        35201: 'Mantenimiento y Conservación de Mobiliario y Equipo de Administración',
-        35801: 'Servicios de Lavandería, Limpieza e Higiene',
-        35901: 'Servicios de Jardinería y Fumigación',
-        37101: 'Pasajes Aéreos Nacionales para Labores en Campo y de Supervisión',
-        37104: 'Pasajes Aéreos Nacionales para Servidores Públicos de Mando',
-        37106: 'Pasajes Aéreos Internacionales para Servidores Públicos',
-        37201: 'Pasajes Terrestres Nacionales para Labores en Campo y de Supervisión',
-        37204: 'Pasajes Terrestres Nacionales para Servidores Públicos de Mando',
-        37206: 'Pasajes Terrestres Internacionales para Servidores Públicos',
-        37501: 'Viáticos Nacionales para Labores en Campo y de Supervisión',
-        37504: 'Viáticos Nacionales para Servidores Públicos en el Desempeño de Funciones Oficiales',
-        37602: 'Viáticos en el Extranjero para Servidores Públicos',
-        37901: 'Cuotas para Congresos, Convenciones, Exposiciones, Seminarios y Similares',
-        38301: 'Congresos y Convenciones',
+        21101: 'Materiales y utiles de oficina',
+        21401: 'Materiales y utiles consumibles para el procesamiento en equipos y bienes informaticos',
+        21501: 'Material de apoyo informativo',
+        22102: 'Productos alimenticios para personas derivado de la prestacion de servicios publicos',
+        22103: 'Productos alimenticios para el personal que realiza labores en campo o de supervision',
+        22104: 'Productos alimenticios para el personal en las instalaciones de las dependencias y entidades',
+        22106: 'Productos alimenticios para el personal derivado de actividades extraordinarias',
+        22301: 'Utensilios para el servicio de alimentacion',
+        26102: 'Combustibles, lubricantes y aditivos para vehiculos destinados a servicios publicos',
+        26103: 'Combustibles, lubricantes y aditivos para vehiculos destinados a servicios administrativos',
+        26104: 'Combustibles, lubricantes y aditivos para vehiculos asignados a servidores publicos',
+        26105: 'Combustibles, lubricantes y aditivos para maquinaria y equipo de produccion',
+        31701: 'Servicios de conduccion de senales analogicas y digitales',
+        33104: 'Otras asesorias para la operacion de programas',
+        33302: 'Servicios estadisticos y geograficos',
+        33401: 'Servicios para capacitacion a servidores publicos',
+        33602: 'Otros servicios comerciales',
+        33801: 'Servicios de vigilancia',
+        33901: 'Subcontratacion de servicios con terceros',
+        35101: 'Mantenimiento y conservacion de inmuebles para la prestacion de servicios administrativos',
+        35201: 'Mantenimiento y conservacion de mobiliario y equipo de administracion',
+        35801: 'Servicios de lavanderia, limpieza e higiene',
+        35901: 'Servicios de jardineria y fumigacion',
+        37101: 'Pasajes aereos nacionales para labores en campo y de supervision',
+        37104: 'Pasajes aereos nacionales para servidores publicos de mando',
+        37106: 'Pasajes aereos internacionales para servidores publicos',
+        37201: 'Pasajes terrestres nacionales para labores en campo y de supervision',
+        37204: 'Pasajes terrestres nacionales para servidores publicos de mando',
+        37206: 'Pasajes terrestres internacionales para servidores publicos',
+        37501: 'Viaticos nacionales para labores en campo y de supervision',
+        37504: 'Viaticos nacionales para servidores publicos en el desempeno de funciones oficiales',
+        37602: 'Viaticos en el extranjero para servidores publicos',
+        37901: 'Cuotas para congresos, convenciones, exposiciones, seminarios y similares',
+        38301: 'Congresos y convenciones',
         38401: 'Exposiciones',
-        38501: 'Gastos de Representación',
+        38501: 'Gastos de representacion',
     }
     
     # Catalogo de programas
     catalogo_programas = config.get('programas_nombres', {})
     
-    # Calcular datos por capítulo para cada UR
+    # Calcular datos por capitulo para cada UR
     capitulos_por_ur = {}
     partidas_por_ur = {}
     
     for ur in urs_validas:
         df_ur = df[df['Nueva UR'] == ur]
         
-        if df_ur.empty:
-            capitulos_por_ur[ur] = {}
-            partidas_por_ur[ur] = []
-            continue
+        # Filtrar para calculos (CONTROL_OPERATIVO = 10 para modificado)
+        df_ur_mod = df_ur[df_ur['CONTROL_OPERATIVO'] == 10]
         
-        # Obtener filtros de CO correctos para esta UR
-        co_filter = get_co_filter_for_ur(ur, config, for_original=False)
+        # Filtrar para ejercido segun tipo de UR
+        if ur in config['entidades_paraestatales'] or ur == 'RJL':
+            df_ur_eje = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50])]
+        elif ur in config['organos_desconcentrados']:
+            df_ur_eje = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50])]
+        else:
+            df_ur_eje = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 50, 51])]
         
-        # Filtrar para cálculos de modificado y ejercido
-        df_ur_filtered = df_ur[df_ur['CONTROL_OPERATIVO'].isin(co_filter)]
-        
-        # Calcular por capítulo (2, 3, 4)
+        # Calcular por capitulo (2, 3, 4)
         caps_ur = {}
         for cap in [2, 3, 4]:
-            df_cap = df_ur_filtered[df_ur_filtered['CAPITULO'] == cap]
+            df_cap_mod = df_ur_mod[df_ur_mod['CAPITULO'] == cap]
+            df_cap_eje = df_ur_eje[df_ur_eje['CAPITULO'] == cap]
             
-            if df_cap.empty:
-                caps_ur[str(cap)] = {
-                    'Original': 0,
-                    'Modificado_anual': 0,
-                    'Modificado_periodo': 0,
-                    'Ejercido': 0,
-                    'Disponible_periodo': 0,
-                }
-                continue
-            
-            # Original: solo CO=0
-            df_cap_orig = df_ur[df_ur['CAPITULO'] == cap]
-            df_cap_orig = df_cap_orig[df_cap_orig['CONTROL_OPERATIVO'] == 0]
-            original = round_like_excel(df_cap_orig['ORIGINAL'].sum(), 2)
-            
-            # Modificado anual
-            mod_anual = round_like_excel(df_cap['MODIFICADO_AUTORIZADO'].sum() - df_cap['RESERVAS'].sum(), 2)
+            original = round_like_excel(df_cap_mod['ORIGINAL'].sum(), 2)
+            mod_anual = round_like_excel(df_cap_mod['MODIFICADO_AUTORIZADO'].sum(), 2)
             
             # Modificado periodo
-            if es_cierre_año_anterior or mes_archivo == 12:
-                mod_periodo = mod_anual
-            else:
-                cols_a_usar = obtener_columnas_hasta_mes(mes_archivo)
-                cols_mod = [col for col in cols_a_usar['modificaciones'] if col in df_cap.columns]
-                cols_res = [col for col in cols_a_usar['reservas'] if col in df_cap.columns]
-                
-                mod_bruto = df_cap[cols_mod].sum(axis=1).sum() if cols_mod else 0
-                cong_periodo = df_cap[cols_res].sum(axis=1).sum() if cols_res else 0
-                mod_periodo = round_like_excel(mod_bruto - cong_periodo, 2)
+            cols_a_usar = obtener_columnas_hasta_mes(mes_archivo)
+            cols_mod = [col for col in cols_a_usar['modificaciones'] if col in df_cap_mod.columns]
+            cols_res = [col for col in cols_a_usar['reservas'] if col in df_cap_mod.columns]
             
-            ejercido = round_like_excel(df_cap['EJERCIDO_REAL'].sum(), 2)
+            mod_bruto = df_cap_mod[cols_mod].sum(axis=1).sum() if cols_mod else 0
+            cong_periodo = df_cap_mod[cols_res].sum(axis=1).sum() if cols_res else 0
+            mod_periodo = round_like_excel(mod_bruto - cong_periodo, 2)
+            
+            ejercido = round_like_excel(df_cap_eje['EJERCIDO_REAL'].sum(), 2)
             
             caps_ur[str(cap)] = {
                 'Original': original,
                 'Modificado_anual': mod_anual,
                 'Modificado_periodo': mod_periodo,
-                'Ejercido': ejercido,
+                'Ejercido_acumulado': ejercido,
                 'Disponible_periodo': round_like_excel(mod_periodo - ejercido, 2),
             }
         
         capitulos_por_ur[ur] = caps_ur
         
         # Calcular top partidas con mayor disponible
-        if not df_ur_filtered.empty:
-            df_partidas = df_ur_filtered.groupby(['Partida', 'PROGRAMA_PRESUPUESTARIO']).agg({
-                'ORIGINAL': 'sum',
-                'MODIFICADO_AUTORIZADO': 'sum',
-                'RESERVAS': 'sum',
-                'EJERCIDO_REAL': 'sum',
-            }).reset_index()
-            
-            df_partidas['Modificado_neto'] = df_partidas['MODIFICADO_AUTORIZADO'] - df_partidas['RESERVAS']
-            df_partidas['Disponible'] = df_partidas['Modificado_neto'] - df_partidas['EJERCIDO_REAL']
-            
-            # Filtrar solo partidas con disponible > 0 y ordenar
-            df_partidas = df_partidas[df_partidas['Disponible'] > 0].sort_values('Disponible', ascending=False).head(5)
-            
-            partidas_list = []
-            for _, row in df_partidas.iterrows():
-                partida = int(row['Partida'])
-                programa = row['PROGRAMA_PRESUPUESTARIO']
-                partidas_list.append({
-                    'Partida': partida,
-                    'Denominacion': catalogo_partidas.get(partida, f'Partida {partida}'),
-                    'Programa': programa,
-                    'Denom_Programa': catalogo_programas.get(programa, programa),
-                    'Original': round_like_excel(row['ORIGINAL'], 2),
-                    'Modificado': round_like_excel(row['Modificado_neto'], 2),
-                    'Ejercido': round_like_excel(row['EJERCIDO_REAL'], 2),
-                    'Disponible': round_like_excel(row['Disponible'], 2),
-                })
-            
-            partidas_por_ur[ur] = partidas_list
-        else:
-            partidas_por_ur[ur] = []
-    
-    # =========================================================================
-    # CALCULAR COP 62 y 67 para la nota
-    # =========================================================================
-    df_cop = df_para_cop_62_67[df_para_cop_62_67['Nueva UR'].astype(str).isin(urs_validas)]
-    df_cop = df_cop[~df_cop['Partida'].isin([39801, 39810])]
-    df_cop = df_cop[~df_cop['CAPITULO'].isin([1, 7])]
-    
-    # COP 62
-    df_cop62 = df_cop[df_cop['CONTROL_OPERATIVO'] == 62]
-    monto_cop62 = round_like_excel(df_cop62['EJERCIDO_REAL'].sum(), 2)
-    urs_cop62 = df_cop62['Nueva UR'].unique().tolist()
-    
-    # COP 67
-    df_cop67 = df_cop[df_cop['CONTROL_OPERATIVO'] == 67]
-    monto_cop67 = round_like_excel(df_cop67['EJERCIDO_REAL'].sum(), 2)
-    urs_cop67 = df_cop67['Nueva UR'].unique().tolist()
+        df_partidas = df_ur_mod.groupby(['Partida', 'PROGRAMA_PRESUPUESTARIO']).agg({
+            'ORIGINAL': 'sum',
+            'MODIFICADO_AUTORIZADO': 'sum',
+        }).reset_index()
+        
+        # Agregar ejercido
+        df_eje_partidas = df_ur_eje.groupby(['Partida', 'PROGRAMA_PRESUPUESTARIO']).agg({
+            'EJERCIDO_REAL': 'sum',
+        }).reset_index()
+        
+        df_partidas = df_partidas.merge(df_eje_partidas, on=['Partida', 'PROGRAMA_PRESUPUESTARIO'], how='left')
+        df_partidas['EJERCIDO_REAL'] = df_partidas['EJERCIDO_REAL'].fillna(0)
+        df_partidas['Disponible'] = df_partidas['MODIFICADO_AUTORIZADO'] - df_partidas['EJERCIDO_REAL']
+        
+        # Filtrar solo partidas con disponible > 0 y ordenar
+        df_partidas = df_partidas[df_partidas['Disponible'] > 0].sort_values('Disponible', ascending=False).head(5)
+        
+        partidas_list = []
+        for _, row in df_partidas.iterrows():
+            partida = int(row['Partida'])
+            programa = row['PROGRAMA_PRESUPUESTARIO']
+            partidas_list.append({
+                'Partida': partida,
+                'Denominacion': catalogo_partidas.get(partida, ''),
+                'Programa': programa,
+                'Denom_Programa': catalogo_programas.get(programa, ''),
+                'Original': round_like_excel(row['ORIGINAL'], 2),
+                'Modificado': round_like_excel(row['MODIFICADO_AUTORIZADO'], 2),
+                'Ejercido': round_like_excel(row['EJERCIDO_REAL'], 2),
+                'Disponible': round_like_excel(row['Disponible'], 2),
+            })
+        
+        partidas_por_ur[ur] = partidas_list
     
     return {
         'resumen': resumen,
@@ -427,10 +406,7 @@ def procesar_sicop(df, filename):
             'texto_anual': numero_a_letras_mx(congelado_anual),
             'texto_periodo': numero_a_letras_mx(congelado_periodo),
         },
-        'cop_excluidos': {
-            'cop_62': {'monto': monto_cop62, 'urs': urs_cop62, 'texto': numero_a_letras_mx(monto_cop62) if monto_cop62 > 0 else ''},
-            'cop_67': {'monto': monto_cop67, 'urs': urs_cop67, 'texto': numero_a_letras_mx(monto_cop67) if monto_cop67 > 0 else ''},
-        },
+        'cop_excluidos': cop_excluidos,
         'totales': total_general,
         'capitulos_por_ur': capitulos_por_ur,
         'partidas_por_ur': partidas_por_ur,
