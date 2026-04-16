@@ -575,23 +575,69 @@ elif pagina == " Ver MAP":
         '% Avance': subtotal_subs['Ejercido'] / subtotal_subs['ModificadoPeriodoNeto'] * 100 if subtotal_subs['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
+    # Calcular qué nota le corresponde a cada programa (3,4,5 para S263,S293,S304;
+    # los demás programas sin congelado llevan la siguiente nota disponible)
+    # Primero asignar notas fijas a los programas que PUEDEN tener congelado
+    PROGS_CON_NOTA_FIJA = {'S263': 3, 'S293': 4, 'S304': 5}
+    nota_sin_cong_inicio = 3  # la primera nota disponible para progs sin congelado
+
+    # Determinar qué nota libre asignar a cada prog sin congelado
+    # (los que no están en PROGS_CON_NOTA_FIJA)
+    # Para que las notas sean consecutivas, primero ocupamos 3,4,5 para S263,S293,S304
+    # y los demás sin congelado llevan la próxima nota disponible (que empieza en 3
+    # si S263/S293/S304 tampoco tienen congelado, o en lo que quede).
+    # Estrategia simple: numerar todos los programas sin congelado de forma consecutiva
+    # empezando desde 3, saltando los números ya usados por progs CON congelado.
+
+    # Construir mapa completo prog → nota
+    nota_por_prog = {}
+    contador_nota = 3
     for prog in programas_especificos:
-        nombre = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+        v_anual   = congelados.get('valores', {}).get(prog, 0)
+        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        tiene_cong = (v_anual > 0 or v_periodo > 0)
+        if tiene_cong:
+            nota_por_prog[prog] = contador_nota
+            contador_nota += 1
+        else:
+            nota_por_prog[prog] = None  # sin congelado → sufijo libre
+
+    # Segunda pasada: asignar número a los sin congelado
+    for prog in programas_especificos:
+        if nota_por_prog[prog] is None:
+            nota_por_prog[prog] = contador_nota
+            contador_nota += 1
+
+    nota_6 = contador_nota       # nota para "Otros programas"
+    nota_7 = contador_nota + 1   # nota para "Bienes muebles"
+
+    for prog in programas_especificos:
+        nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-        cuadro_data.append({'Concepto': f"{prog} - {nombre}", 'Original': d.get('Original', 0),
+        v_anual   = congelados.get('valores', {}).get(prog, 0)
+        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        tiene_cong = (v_anual > 0 or v_periodo > 0)
+        n = nota_por_prog[prog]
+        # Si tiene congelado, la nota ya está embebida en nombres_especiales (ej "S263 3/")
+        # Si no tiene congelado, agregar el sufijo "N/" al nombre
+        if tiene_cong:
+            concepto = f"{prog} - {nombre_base}"
+        else:
+            concepto = f"{prog} - {nombre_base} {n}/"
+        cuadro_data.append({'Concepto': concepto, 'Original': d.get('Original', 0),
             'Mod. Anual': d.get('ModificadoAnualNeto', 0), 'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
             'Ejercido': d.get('Ejercido', 0), 'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
             '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
             '_tipo': 'programa'})
 
-    cuadro_data.append({'Concepto': 'Otros programas de subsidios y Gastos asociados 6/', 'Original': cat_otros['Original'],
+    cuadro_data.append({'Concepto': f'Otros programas de subsidios y Gastos asociados {nota_6}/', 'Original': cat_otros['Original'],
         'Mod. Anual': cat_otros['ModificadoAnualNeto'], 'Mod. Periodo': cat_otros['ModificadoPeriodoNeto'],
         'Ejercido': cat_otros['Ejercido'], 'Disponible': cat_otros['ModificadoPeriodoNeto'] - cat_otros['Ejercido'],
         '% Avance': cat_otros['Ejercido'] / cat_otros['ModificadoPeriodoNeto'] * 100 if cat_otros['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'programa'})
 
     cat_bm = categorias.get('bienes_muebles', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': 'Bienes muebles, inmuebles e intangibles 7/', 'Original': cat_bm['Original'],
+    cuadro_data.append({'Concepto': f'Bienes muebles, inmuebles e intangibles {nota_7}/', 'Original': cat_bm['Original'],
         'Mod. Anual': cat_bm['ModificadoAnualNeto'], 'Mod. Periodo': cat_bm['ModificadoPeriodoNeto'],
         'Ejercido': cat_bm['Ejercido'], 'Disponible': cat_bm['ModificadoPeriodoNeto'] - cat_bm['Ejercido'],
         '% Avance': cat_bm['Ejercido'] / cat_bm['ModificadoPeriodoNeto'] * 100 if cat_bm['ModificadoPeriodoNeto'] > 0 else 0,
@@ -624,30 +670,36 @@ elif pagina == " Ver MAP":
     st.markdown("**Notas:**")
     st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
-    nota_num = 3
-    for prog in ['S263', 'S293', 'S304']:
-        valor_anual = congelados.get('valores', {}).get(prog, 0)
+    # Notas para programas CON congelado
+    for prog in programas_especificos:
+        v_anual   = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
-        valor_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
         texto_periodo = congelados.get('textos_periodo', {}).get(prog, '')
-        if valor_anual > 0 or valor_periodo > 0:
-            nota = f"{nota_num}/ El presupuesto modificado incluye un monto anual de \\${valor_anual:,.2f} ({texto_anual}), de recursos congelados."
-            if valor_periodo > 0:
-                nota += f" Y un monto al periodo de \\${valor_periodo:,.2f} ({texto_periodo}), de recursos congelados."
+        n = nota_por_prog[prog]
+        if v_anual > 0 or v_periodo > 0:
+            nota = f"{n}/ El presupuesto modificado incluye un monto anual de \\${v_anual:,.2f} ({texto_anual}), de recursos congelados."
+            if v_periodo > 0:
+                nota += f" Y un monto al periodo de \\${v_periodo:,.2f} ({texto_periodo}), de recursos congelados."
             st.markdown(nota)
-        else:
-            st.markdown(f"{nota_num}/ Sin recursos congelados para este programa.")
-        nota_num += 1
-    st.markdown("6/ Incluye diversos programas de carácter administrativo.")
-    # Nota 7: Bienes muebles congelados
+    # Notas para programas SIN congelado
+    for prog in programas_especificos:
+        v_anual   = congelados.get('valores', {}).get(prog, 0)
+        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        n = nota_por_prog[prog]
+        if not (v_anual > 0 or v_periodo > 0):
+            nombre_base = programas_nombres.get(prog, prog)
+            st.markdown(f"{n}/ Sin recursos congelados para {prog} - {nombre_base}.")
+    st.markdown(f"{nota_6}/ Incluye diversos programas de carácter administrativo.")
+    # Nota de Bienes muebles
     bm_periodo = congelados.get('bm_periodo', 0)
     bm_periodo_texto = congelados.get('bm_periodo_texto', '')
     if not bm_periodo_texto and bm_periodo > 0:
         bm_periodo_texto = numero_a_letras_mx(bm_periodo)
     if bm_periodo > 0:
-        st.markdown(f"7/ El Presupuesto Modificado al periodo no incluye \\${bm_periodo:,.2f} ({bm_periodo_texto}), recursos congelados.")
+        st.markdown(f"{nota_7}/ El Presupuesto Modificado al periodo no incluye \\${bm_periodo:,.2f} ({bm_periodo_texto}), recursos congelados.")
     else:
-        st.markdown("7/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.")
+        st.markdown(f"{nota_7}/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.")
 
 # ============================================================================
 # PÁGINA: VER SICOP
