@@ -562,6 +562,7 @@ elif pagina == " Ver MAP":
         '_tipo': 'subtotal'})
 
     cat_otros = categorias.get('otros_programas', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    congelados = resultados.get('congelados', {})
 
     subtotal_subs = {
         'Original':             sum(programas.get(p, {}).get('Original', 0)             for p in programas_especificos) + cat_otros['Original'],
@@ -664,7 +665,6 @@ elif pagina == " Ver MAP":
         use_container_width=True, hide_index=True, height=450,
         column_config={'Concepto': st.column_config.TextColumn(width='large')})
 
-    congelados = resultados.get('congelados', {})
     st.markdown("---")
     st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
     st.markdown("**Notas:**")
