@@ -201,16 +201,14 @@ def generar_excel_map(resultados):
     ws.row_dimensions[9].height = 20.25
 
     fila = 10
+    import re as _re
     for prog in PROGRAMAS_ESPECIFICOS:
         nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+        # Limpiar cualquier sufijo "N/" que venga hardcodeado desde config.py
+        nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
         prog_data = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-        v_a = congelados.get('valores', {}).get(prog, 0)
-        v_p = congelados.get('valores_periodo', {}).get(prog, 0)
-        n   = nota_por_prog[prog]
-        if v_a > 0 or v_p > 0:
-            concepto_prog = nombre_base          # ya lleva el N/ desde nombres_especiales
-        else:
-            concepto_prog = f'{nombre_base} {n}/'
+        n = nota_por_prog[prog]
+        concepto_prog = f'{nombre_base} {n}/'
         escribir_fila_datos(fila, concepto_prog, prog_data)
         ws.row_dimensions[fila].height = 39 if len(concepto_prog) > 50 else 20.25
         fila += 1
@@ -285,6 +283,19 @@ def generar_excel_map(resultados):
     # Nota de Bienes muebles
     bm_periodo       = congelados.get('bm_periodo', 0)
     bm_periodo_texto = congelados.get('bm_periodo_texto', '')
+    # Fallback si el pickle fue generado antes de que existiera bm_periodo
+    if bm_periodo == 0 and 'df_procesado' in resultados:
+        try:
+            df_proc = resultados['df_procesado']
+            progs_esp = config.get('programas_especificos', [])
+            df_bm_calc = df_proc[
+                df_proc['Capitulo'].isin([5000, 7000]) &
+                (~df_proc['Pp'].isin(progs_esp))
+            ]
+            if not df_bm_calc.empty and 'CongeladoPeriodo' in df_bm_calc.columns:
+                bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
+        except Exception:
+            pass
     if not bm_periodo_texto and bm_periodo > 0:
         bm_periodo_texto = numero_a_letras_mx(bm_periodo)
     if bm_periodo > 0:
