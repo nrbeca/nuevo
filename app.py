@@ -597,16 +597,18 @@ elif pagina == " Ver MAP":
 
     for prog in programas_especificos:
         nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+        # Limpiar cualquier sufijo "N/" que venga hardcodeado desde config.py
+        import re as _re
+        nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
         v_anual  = congelados.get('valores', {}).get(prog, 0)
         v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
         tiene_cong = (v_anual > 0 or v_periodo > 0)
         n = nota_por_prog[prog]
         # Programas sin congelado llevan "3/" al final del nombre
-        # Programas con congelado llevan su número dinámico (ya incluido en nombres_especiales
-        # solo para S263/S293/S304 — para los demás lo agregamos aquí igual)
+        # Programas con congelado llevan su número dinámico
         if tiene_cong:
-            concepto = f"{prog} - {nombre_base}"
+            concepto = f"{prog} - {nombre_base} {n}/"
         else:
             concepto = f"{prog} - {nombre_base} {n}/"
         cuadro_data.append({'Concepto': concepto, 'Original': d.get('Original', 0),
@@ -671,6 +673,20 @@ elif pagina == " Ver MAP":
     # Nota de Bienes muebles
     bm_periodo = congelados.get('bm_periodo', 0)
     bm_periodo_texto = congelados.get('bm_periodo_texto', '')
+    # Fallback: si el pickle fue generado antes de que se calculara bm_periodo,
+    # recalcularlo desde df_procesado
+    if bm_periodo == 0 and 'df_procesado' in resultados:
+        try:
+            df_proc = resultados['df_procesado']
+            PROGRAMAS_ESPECIFICOS_CONF = config.get('programas_especificos', [])
+            df_bm_calc = df_proc[
+                df_proc['Capitulo'].isin([5000, 7000]) &
+                (~df_proc['Pp'].isin(PROGRAMAS_ESPECIFICOS_CONF))
+            ]
+            if not df_bm_calc.empty and 'CongeladoPeriodo' in df_bm_calc.columns:
+                bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
+        except Exception:
+            pass
     if not bm_periodo_texto and bm_periodo > 0:
         bm_periodo_texto = numero_a_letras_mx(bm_periodo)
     if bm_periodo > 0:
