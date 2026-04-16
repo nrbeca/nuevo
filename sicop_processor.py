@@ -128,13 +128,13 @@ def procesar_sicop(df, filename):
     cop_excluidos = {
         'cop_62': {
             'monto': monto_cop62,
-            'urs': urs_cop62,
-            'texto': numero_a_letras_mx(monto_cop62) if monto_cop62 > 0 else ''
+            'urs': urs_cop62 if urs_cop62 else ['120'],  # Default UR si no hay datos
+            'texto': numero_a_letras_mx(monto_cop62) if monto_cop62 > 0 else 'Cero pesos 00/100 M.N.'
         },
         'cop_67': {
             'monto': monto_cop67,
-            'urs': urs_cop67,
-            'texto': numero_a_letras_mx(monto_cop67) if monto_cop67 > 0 else ''
+            'urs': urs_cop67 if urs_cop67 else ['512', '513'],  # Default URs si no hay datos
+            'texto': numero_a_letras_mx(monto_cop67) if monto_cop67 > 0 else 'Cero pesos 00/100 M.N.'
         }
     }
     # =========================================================================
