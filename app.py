@@ -774,24 +774,35 @@ elif pagina == " Ver SICOP":
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
 
         cop_excluidos = resultados.get('cop_excluidos', {})
+        # Asegurar que los textos en letras estén siempre presentes
+        for cop_key in ('cop_62', 'cop_67'):
+            cop_d = cop_excluidos.get(cop_key, {})
+            if cop_d.get('monto', 0) > 0 and not cop_d.get('texto', ''):
+                cop_d['texto'] = numero_a_letras_mx(cop_d['monto'])
+
         cop62 = cop_excluidos.get('cop_62', {'monto': 0, 'urs': [], 'texto': ''})
         cop67 = cop_excluidos.get('cop_67', {'monto': 0, 'urs': [], 'texto': ''})
-        if not cop_excluidos:
-            datos_cop_62_67 = calcular_cop_62_67_desde_sicop(df_original)
-            cop62 = datos_cop_62_67['cop_62']
-            cop62['texto'] = numero_a_letras_mx(cop62['monto']) if cop62['monto'] > 0 else ''
-            cop67 = datos_cop_62_67['cop_67']
-            cop67['texto'] = numero_a_letras_mx(cop67['monto']) if cop67['monto'] > 0 else ''
 
         partes = []
         if cop62.get('monto', 0) > 0:
             urs_62 = ', '.join(str(u) for u in cop62.get('urs', ['120'])) if cop62.get('urs') else '120'
-            partes.append(f"COP 62 la cantidad de \\${cop62['monto']:,.2f} ({cop62.get('texto', '')}) esto en la UR {urs_62}")
+            partes.append(
+                f"COP 62 la cantidad de \\${cop62['monto']:,.2f} "
+                f"({cop62.get('texto', numero_a_letras_mx(cop62['monto']))}) "
+                f"esto en la UR {urs_62}"
+            )
         if cop67.get('monto', 0) > 0:
             urs_67 = ' y '.join(str(u) for u in cop67.get('urs', ['512', '513'])) if cop67.get('urs') else '512 y 513'
-            partes.append(f"COP 67 la cantidad de \\${cop67['monto']:,.2f} ({cop67.get('texto', '')}) esto en las UR {urs_67}")
+            partes.append(
+                f"COP 67 la cantidad de \\${cop67['monto']:,.2f} "
+                f"({cop67.get('texto', numero_a_letras_mx(cop67['monto']))}) "
+                f"esto en las UR {urs_67}"
+            )
         if partes:
-            st.markdown("4/ No se están considerando montos de los Controles Operativos (COP): " + '; y en '.join(partes) + ".")
+            st.markdown(
+                "4/ No se están considerando montos de los Controles Operativos (COP): "
+                + "; y en ".join(partes) + "."
+            )
 
     # ========================================================================
     # TAB 2: Dashboard Presupuesto
