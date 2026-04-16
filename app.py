@@ -576,51 +576,35 @@ elif pagina == " Ver MAP":
         '% Avance': subtotal_subs['Ejercido'] / subtotal_subs['ModificadoPeriodoNeto'] * 100 if subtotal_subs['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
-    # Calcular qué nota le corresponde a cada programa (3,4,5 para S263,S293,S304;
-    # los demás programas sin congelado llevan la siguiente nota disponible)
-    # Primero asignar notas fijas a los programas que PUEDEN tener congelado
-    PROGS_CON_NOTA_FIJA = {'S263': 3, 'S293': 4, 'S304': 5}
-    nota_sin_cong_inicio = 3  # la primera nota disponible para progs sin congelado
-
-    # Determinar qué nota libre asignar a cada prog sin congelado
-    # (los que no están en PROGS_CON_NOTA_FIJA)
-    # Para que las notas sean consecutivas, primero ocupamos 3,4,5 para S263,S293,S304
-    # y los demás sin congelado llevan la próxima nota disponible (que empieza en 3
-    # si S263/S293/S304 tampoco tienen congelado, o en lo que quede).
-    # Estrategia simple: numerar todos los programas sin congelado de forma consecutiva
-    # empezando desde 3, saltando los números ya usados por progs CON congelado.
-
-    # Construir mapa completo prog → nota
+    # Nota 3/ fija para programas SIN congelado.
+    # Programas CON congelado se numeran a partir del 3 de forma consecutiva.
+    NOTA_SIN_CONG = 3   # siempre "3/" para los sin congelado
     nota_por_prog = {}
-    contador_nota = 3
+    contador_nota = 4   # los que tienen congelado empiezan en 4
     for prog in programas_especificos:
-        v_anual   = congelados.get('valores', {}).get(prog, 0)
+        v_anual  = congelados.get('valores', {}).get(prog, 0)
         v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
-        tiene_cong = (v_anual > 0 or v_periodo > 0)
-        if tiene_cong:
+        if v_anual > 0 or v_periodo > 0:
             nota_por_prog[prog] = contador_nota
             contador_nota += 1
         else:
-            nota_por_prog[prog] = None  # sin congelado → sufijo libre
+            nota_por_prog[prog] = NOTA_SIN_CONG  # "3/"
 
-    # Segunda pasada: asignar número a los sin congelado
-    for prog in programas_especificos:
-        if nota_por_prog[prog] is None:
-            nota_por_prog[prog] = contador_nota
-            contador_nota += 1
-
-    nota_6 = contador_nota       # nota para "Otros programas"
-    nota_7 = contador_nota + 1   # nota para "Bienes muebles"
+    # Si ningún programa tiene congelado, el contador sigue en 4;
+    # si alguno tiene, el contador ya avanzó. En cualquier caso:
+    nota_6 = contador_nota        # nota para "Otros programas"
+    nota_7 = contador_nota + 1    # nota para "Bienes muebles"
 
     for prog in programas_especificos:
         nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-        v_anual   = congelados.get('valores', {}).get(prog, 0)
+        v_anual  = congelados.get('valores', {}).get(prog, 0)
         v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
         tiene_cong = (v_anual > 0 or v_periodo > 0)
         n = nota_por_prog[prog]
-        # Si tiene congelado, la nota ya está embebida en nombres_especiales (ej "S263 3/")
-        # Si no tiene congelado, agregar el sufijo "N/" al nombre
+        # Programas sin congelado llevan "3/" al final del nombre
+        # Programas con congelado llevan su número dinámico (ya incluido en nombres_especiales
+        # solo para S263/S293/S304 — para los demás lo agregamos aquí igual)
         if tiene_cong:
             concepto = f"{prog} - {nombre_base}"
         else:
@@ -670,11 +654,12 @@ elif pagina == " Ver MAP":
     st.markdown("**Notas:**")
     st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
-    # Notas para programas CON congelado
+    st.markdown("3/ Sin recursos congelados para este programa.")
+    # Notas para programas CON congelado (numeradas dinámicamente desde 4)
     for prog in programas_especificos:
-        v_anual   = congelados.get('valores', {}).get(prog, 0)
+        v_anual     = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
-        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        v_periodo   = congelados.get('valores_periodo', {}).get(prog, 0)
         texto_periodo = congelados.get('textos_periodo', {}).get(prog, '')
         n = nota_por_prog[prog]
         if v_anual > 0 or v_periodo > 0:
@@ -682,14 +667,6 @@ elif pagina == " Ver MAP":
             if v_periodo > 0:
                 nota += f" Y un monto al periodo de \\${v_periodo:,.2f} ({texto_periodo}), de recursos congelados."
             st.markdown(nota)
-    # Notas para programas SIN congelado
-    for prog in programas_especificos:
-        v_anual   = congelados.get('valores', {}).get(prog, 0)
-        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
-        n = nota_por_prog[prog]
-        if not (v_anual > 0 or v_periodo > 0):
-            nombre_base = programas_nombres.get(prog, prog)
-            st.markdown(f"{n}/ Sin recursos congelados para {prog} - {nombre_base}.")
     st.markdown(f"{nota_6}/ Incluye diversos programas de carácter administrativo.")
     # Nota de Bienes muebles
     bm_periodo = congelados.get('bm_periodo', 0)
