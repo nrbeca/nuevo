@@ -171,8 +171,11 @@ def generar_excel_map(resultados):
     cat_bm  = categorias.get('bienes_muebles',       {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
 
     # ── Calcular mapa nota → programa dinámicamente ───────────────────────────
+    # Todos los sin congelado llevan siempre "3/" — una sola nota genérica al pie.
+    # Los que tienen congelado se numeran dinámicamente desde 4.
+    NOTA_SIN_CONG = 3
     nota_por_prog = {}
-    contador_nota = 3
+    contador_nota = 4
     for prog in PROGRAMAS_ESPECIFICOS:
         v_a = congelados.get('valores', {}).get(prog, 0)
         v_p = congelados.get('valores_periodo', {}).get(prog, 0)
@@ -180,11 +183,7 @@ def generar_excel_map(resultados):
             nota_por_prog[prog] = contador_nota
             contador_nota += 1
         else:
-            nota_por_prog[prog] = None
-    for prog in PROGRAMAS_ESPECIFICOS:
-        if nota_por_prog[prog] is None:
-            nota_por_prog[prog] = contador_nota
-            contador_nota += 1
+            nota_por_prog[prog] = NOTA_SIN_CONG
     nota_6 = contador_nota
     nota_7 = contador_nota + 1
 
@@ -265,8 +264,10 @@ def generar_excel_map(resultados):
         '1/ Incluye los capítulos de gasto 2000 "Materiales y suministros" y 3000 "Servicios generales".')
     fila_notas = _nota_plain(fila_notas,
         '2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.')
+    fila_notas = _nota_plain(fila_notas,
+        '3/ Sin recursos congelados para este programa.')
 
-    # Notas dinámicas: primero los que tienen congelado, luego los que no
+    # Notas dinámicas solo para programas CON congelado (desde 4)
     for prog in PROGRAMAS_ESPECIFICOS:
         v_a = congelados.get('valores', {}).get(prog, 0)
         t_a = congelados.get('textos', {}).get(prog, numero_a_letras_mx(v_a))
@@ -278,15 +279,6 @@ def generar_excel_map(resultados):
             if v_p > 0:
                 nota += f' Y un monto al periodo de ${v_p:,.2f} ({t_p}), de recursos congelados.'
             fila_notas = _nota_plain(fila_notas, nota, altura=30)
-
-    for prog in PROGRAMAS_ESPECIFICOS:
-        v_a = congelados.get('valores', {}).get(prog, 0)
-        v_p = congelados.get('valores_periodo', {}).get(prog, 0)
-        n   = nota_por_prog[prog]
-        if not (v_a > 0 or v_p > 0):
-            nombre_base = programas_nombres.get(prog, prog)
-            fila_notas = _nota_plain(fila_notas,
-                f'{n}/ Sin recursos congelados para {prog} - {nombre_base}.', altura=20)
 
     fila_notas = _nota_plain(fila_notas, f'{nota_6}/ Incluye diversos programas de carácter administrativo.')
 
