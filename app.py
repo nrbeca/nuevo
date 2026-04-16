@@ -591,7 +591,7 @@ elif pagina == " Ver MAP":
         '_tipo': 'programa'})
 
     cat_bm = categorias.get('bienes_muebles', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': 'Bienes muebles, inmuebles e intangibles', 'Original': cat_bm['Original'],
+    cuadro_data.append({'Concepto': 'Bienes muebles, inmuebles e intangibles 7/', 'Original': cat_bm['Original'],
         'Mod. Anual': cat_bm['ModificadoAnualNeto'], 'Mod. Periodo': cat_bm['ModificadoPeriodoNeto'],
         'Ejercido': cat_bm['Ejercido'], 'Disponible': cat_bm['ModificadoPeriodoNeto'] - cat_bm['Ejercido'],
         '% Avance': cat_bm['Ejercido'] / cat_bm['ModificadoPeriodoNeto'] * 100 if cat_bm['ModificadoPeriodoNeto'] > 0 else 0,
@@ -615,7 +615,8 @@ elif pagina == " Ver MAP":
             'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}',
             'Disponible': '${:,.2f}', '% Avance': '{:.2f}%'
         }).apply(estilo_cuadro_map, axis=1),
-        use_container_width=True, hide_index=True, height=450)
+        use_container_width=True, hide_index=True, height=450,
+        column_config={'Concepto': st.column_config.TextColumn(width='large')})
 
     congelados = resultados.get('congelados', {})
     st.markdown("---")
@@ -638,6 +639,15 @@ elif pagina == " Ver MAP":
             st.markdown(f"{nota_num}/ Sin recursos congelados para este programa.")
         nota_num += 1
     st.markdown("6/ Incluye diversos programas de carácter administrativo.")
+    # Nota 7: Bienes muebles congelados
+    bm_periodo = congelados.get('bm_periodo', 0)
+    bm_periodo_texto = congelados.get('bm_periodo_texto', '')
+    if not bm_periodo_texto and bm_periodo > 0:
+        bm_periodo_texto = numero_a_letras_mx(bm_periodo)
+    if bm_periodo > 0:
+        st.markdown(f"7/ El Presupuesto Modificado al periodo no incluye \\${bm_periodo:,.2f} ({bm_periodo_texto}), recursos congelados.")
+    else:
+        st.markdown("7/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.")
 
 # ============================================================================
 # PÁGINA: VER SICOP
@@ -760,7 +770,8 @@ elif pagina == " Ver SICOP":
                 'Disp. Anual': '${:,.2f}', 'Disp. Periodo': '${:,.2f}',
                 '% Av. Anual': '{:.2f}%', '% Av. Periodo': '{:.2f}%'
             }).apply(estilo_estado_ejercicio, axis=1),
-            use_container_width=True, hide_index=True, height=800)
+            use_container_width=True, hide_index=True, height=800,
+            column_config={'Denominación': st.column_config.TextColumn(width='large')})
 
         congelados_sicop = resultados.get('congelados', {})
         st.markdown("---")
@@ -1024,13 +1035,13 @@ elif pagina == " Ver SICOP":
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.markdown(create_kpi_card(f"Ejercido {año_anterior}", format_currency_millions(total_ejercido_ant)), unsafe_allow_html=True)
+            st.markdown(create_kpi_card(f"Ejercido {año_anterior}", format_currency(total_ejercido_ant)), unsafe_allow_html=True)
         with col2:
-            st.markdown(create_kpi_card("Original", format_currency_millions(total_original)), unsafe_allow_html=True)
+            st.markdown(create_kpi_card("Original", format_currency(total_original)), unsafe_allow_html=True)
         with col3:
-            st.markdown(create_kpi_card("Modificado", format_currency_millions(total_modificado)), unsafe_allow_html=True)
+            st.markdown(create_kpi_card("Modificado", format_currency(total_modificado)), unsafe_allow_html=True)
         with col4:
-            st.markdown(create_kpi_card("Ejercido Real", format_currency_millions(total_ejercido)), unsafe_allow_html=True)
+            st.markdown(create_kpi_card("Ejercido Real", format_currency(total_ejercido)), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("#### Partidas sujetas a Austeridad Republicana")
