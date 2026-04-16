@@ -522,13 +522,13 @@ elif pagina == " Ver MAP":
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(create_kpi_card("PEF Original", format_currency_millions(totales['Original'])), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("PEF Original", format_currency(totales['Original'])), unsafe_allow_html=True)
     with col2:
-        st.markdown(create_kpi_card("Modificado Anual", format_currency_millions(totales['ModificadoAnualNeto']), "", COLOR_VINO), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Modificado Anual", format_currency(totales['ModificadoAnualNeto']), "", COLOR_VINO), unsafe_allow_html=True)
     with col3:
-        st.markdown(create_kpi_card("Mod. Periodo", format_currency_millions(totales['ModificadoPeriodoNeto']), "", COLOR_BEIGE), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Mod. Periodo", format_currency(totales['ModificadoPeriodoNeto']), "", COLOR_BEIGE), unsafe_allow_html=True)
     with col4:
-        st.markdown(create_kpi_card("Ejercido", format_currency_millions(totales['Ejercido']), "", COLOR_NARANJA), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Ejercido", format_currency(totales['Ejercido']), "", COLOR_NARANJA), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### Concepto / Programa Presupuestario")
@@ -561,11 +561,13 @@ elif pagina == " Ver MAP":
         '% Avance': cat_gc['Ejercido'] / cat_gc['ModificadoPeriodoNeto'] * 100 if cat_gc['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
+    cat_otros = categorias.get('otros_programas', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+
     subtotal_subs = {
-        'Original': sum(programas.get(p, {}).get('Original', 0) for p in programas_especificos),
-        'ModificadoAnualNeto': sum(programas.get(p, {}).get('ModificadoAnualNeto', 0) for p in programas_especificos),
-        'ModificadoPeriodoNeto': sum(programas.get(p, {}).get('ModificadoPeriodoNeto', 0) for p in programas_especificos),
-        'Ejercido': sum(programas.get(p, {}).get('Ejercido', 0) for p in programas_especificos),
+        'Original':             sum(programas.get(p, {}).get('Original', 0)             for p in programas_especificos) + cat_otros['Original'],
+        'ModificadoAnualNeto':  sum(programas.get(p, {}).get('ModificadoAnualNeto', 0)  for p in programas_especificos) + cat_otros['ModificadoAnualNeto'],
+        'ModificadoPeriodoNeto':sum(programas.get(p, {}).get('ModificadoPeriodoNeto', 0) for p in programas_especificos) + cat_otros['ModificadoPeriodoNeto'],
+        'Ejercido':             sum(programas.get(p, {}).get('Ejercido', 0)             for p in programas_especificos) + cat_otros['Ejercido'],
     }
     cuadro_data.append({'Concepto': 'Subsidios y Gastos asociados 2/', 'Original': subtotal_subs['Original'],
         'Mod. Anual': subtotal_subs['ModificadoAnualNeto'], 'Mod. Periodo': subtotal_subs['ModificadoPeriodoNeto'],
@@ -582,7 +584,6 @@ elif pagina == " Ver MAP":
             '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
             '_tipo': 'programa'})
 
-    cat_otros = categorias.get('otros_programas', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
     cuadro_data.append({'Concepto': 'Otros programas de subsidios y Gastos asociados 6/', 'Original': cat_otros['Original'],
         'Mod. Anual': cat_otros['ModificadoAnualNeto'], 'Mod. Periodo': cat_otros['ModificadoPeriodoNeto'],
         'Ejercido': cat_otros['Ejercido'], 'Disponible': cat_otros['ModificadoPeriodoNeto'] - cat_otros['Ejercido'],
@@ -670,11 +671,11 @@ elif pagina == " Ver SICOP":
     totales = resultados['totales']
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(create_kpi_card("Original", format_currency_millions(totales['Original'])), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Original", format_currency(totales['Original'])), unsafe_allow_html=True)
     with col2:
-        st.markdown(create_kpi_card("Modificado Anual", format_currency_millions(totales['Modificado_anual']), "", COLOR_VINO), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Modificado Anual", format_currency(totales['Modificado_anual']), "", COLOR_VINO), unsafe_allow_html=True)
     with col3:
-        st.markdown(create_kpi_card("Ejercido", format_currency_millions(totales['Ejercido_acumulado']), "", COLOR_NARANJA), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Ejercido", format_currency(totales['Ejercido_acumulado']), "", COLOR_NARANJA), unsafe_allow_html=True)
     with col4:
         pct = totales['Pct_avance_periodo'] * 100 if totales['Pct_avance_periodo'] else 0
         st.markdown(create_kpi_card("Avance Periodo", f"{pct:.2f}%", "", COLOR_AZUL), unsafe_allow_html=True)
