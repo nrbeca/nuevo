@@ -982,15 +982,17 @@ elif pagina == " Ver SICOP":
         st.markdown("### Dashboard Austeridad")
 
         datos_sicop_aust = procesar_sicop_austeridad(df_original)
-        urs_disponibles = obtener_urs_disponibles_sicop(datos_sicop_aust)
 
-        opciones_ur_aust = []
-        for ur in urs_disponibles:
-            nombre = DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ''))
-            opciones_ur_aust.append(f"{ur} - {nombre}" if nombre else ur)
+        # Usar la misma lista de URs del config (ya fusionadas/mapeadas),
+        # igual que en el Dashboard Presupuesto
+        urs_config = sorted([ur for ur in
+            config.get('sector_central', []) + config.get('oficinas', []) +
+            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', [])])
+
+        opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
 
         ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
-        ur_codigo = ur_seleccionada.split(" - ")[0] if " - " in ur_seleccionada else ur_seleccionada
+        ur_codigo = ur_seleccionada.split(" - ")[0]
         ur_nombre = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
 
         datos_dashboard = generar_dashboard_austeridad_desde_sicop(datos_sicop_aust, ur_codigo)
