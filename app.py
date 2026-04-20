@@ -671,11 +671,13 @@ elif pagina == " Ver MAP":
             st.markdown(nota)
     st.markdown(f"{nota_6}/ Incluye diversos programas de carácter administrativo.")
     # Nota de Bienes muebles
+    bm_anual = congelados.get('bm_anual', 0)
+    bm_anual_texto = congelados.get('bm_anual_texto', '')
     bm_periodo = congelados.get('bm_periodo', 0)
     bm_periodo_texto = congelados.get('bm_periodo_texto', '')
     # Fallback: si el pickle fue generado antes de que se calculara bm_periodo,
     # recalcularlo desde df_procesado
-    if bm_periodo == 0 and 'df_procesado' in resultados:
+    if (bm_anual == 0 or bm_periodo == 0) and 'df_procesado' in resultados:
         try:
             df_proc = resultados['df_procesado']
             PROGRAMAS_ESPECIFICOS_CONF = config.get('programas_especificos', [])
@@ -684,13 +686,21 @@ elif pagina == " Ver MAP":
                 (~df_proc['Pp'].isin(PROGRAMAS_ESPECIFICOS_CONF))
             ]
             if not df_bm_calc.empty and 'CongeladoPeriodo' in df_bm_calc.columns:
-                bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
+                if bm_anual == 0:
+                    bm_anual = round(float(df_bm_calc['CongeladoAnual'].sum()), 2)
+                if bm_periodo == 0:
+                    bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
         except Exception:
             pass
+    if not bm_anual_texto and bm_anual > 0:
+        bm_anual_texto = numero_a_letras_mx(bm_anual)
     if not bm_periodo_texto and bm_periodo > 0:
         bm_periodo_texto = numero_a_letras_mx(bm_periodo)
-    if bm_periodo > 0:
-        st.markdown(f"{nota_7}/ El Presupuesto Modificado al periodo no incluye \\${bm_periodo:,.2f} ({bm_periodo_texto}), recursos congelados.")
+    if bm_anual > 0 or bm_periodo > 0:
+        nota7 = f"{nota_7}/ El presupuesto modificado incluye un monto anual de \\${bm_anual:,.2f} ({bm_anual_texto}), de recursos congelados."
+        if bm_periodo > 0:
+            nota7 += f" Y un monto al periodo de \\${bm_periodo:,.2f} ({bm_periodo_texto}), de recursos congelados."
+        st.markdown(nota7)
     else:
         st.markdown(f"{nota_7}/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.")
 
