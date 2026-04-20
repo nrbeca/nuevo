@@ -518,7 +518,7 @@ elif pagina == " Ver MAP":
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     st.markdown("---")
-    st.markdown(f'### Estado del ejercicio al {formatear_fecha(ultimo_habil)} del Ramo 08 "Agricultura y Desarrollo Rural"')
+    st.markdown(f'### Estado del ejercicio al {formatear_fecha(date.today())} del Ramo 08 "Agricultura y Desarrollo Rural"')
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
