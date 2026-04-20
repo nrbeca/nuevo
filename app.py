@@ -721,7 +721,7 @@ elif pagina == " Ver SICOP":
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     st.markdown("---")
-    st.markdown(f'### Estado del ejercicio del 1 de enero al {formatear_fecha(ultimo_habil)} por Unidad Responsable de la Secretaría de Agricultura y Desarrollo Rural 1/')
+    st.markdown(f'### Estado del ejercicio del 1 de enero al {formatear_fecha(date.today())} por Unidad Responsable de la Secretaría de Agricultura y Desarrollo Rural 1/')
 
     totales = resultados['totales']
     col1, col2, col3, col4 = st.columns(4)
@@ -1067,10 +1067,10 @@ elif pagina == " Ver SICOP":
 
         año_actual = date.today().year
         año_anterior = año_actual - 1
-        ultimo_habil = obtener_ultimo_dia_habil(date.today())
-        mes_nombre = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][ultimo_habil.month-1]
+        hoy_aust = date.today()
+        mes_nombre = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy_aust.month-1]
 
-        st.markdown(f"#### Estado del ejercicio del 1 de enero al {ultimo_habil.day} de {mes_nombre} de {año_actual}")
+        st.markdown(f"#### Estado del ejercicio del 1 de enero al {hoy_aust.day} de {mes_nombre} de {año_actual}")
         st.markdown(f"**{ur_codigo}.- {ur_nombre}**")
 
         total_ejercido_ant = sum(d['Ejercido_Anterior'] for d in datos_dashboard)
