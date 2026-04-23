@@ -269,8 +269,8 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     cond_cop10 = (df[ff_col] == 1) & (df['CONTROL_OPERATIVO'] == 10)
 
     if ur_codigo == '511':
-        # UR 511: paga cap 1000 y 39801 de TODAS las URs
-        # Parte 1: pagos normales de la 511 (excluyendo cap 1000 y 39801)
+        # UR 511: TODOS sus propios pagos (sin excluir nada)
+        # MÁS cap 1000 y 39801 de TODAS las URs
         mapeo_ur  = config.get('mapeo_ur', {})
         fusion_urs = config.get('fusion_urs', {})
         urs_511 = ['511']
@@ -281,33 +281,25 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
             if str(ur_dest) == '511':
                 urs_511.append(str(ur_orig))
 
+        # Pagos propios de la 511 (todos, sin excluir nada)
         df_511 = df[df['ID_UNIDAD'].isin(urs_511)].copy()
+        pago_cop_00_propio = df_511[(df_511[ff_col] == 6) & (df_511['CONTROL_OPERATIVO'] == 0)]['EJERCIDO'].sum()
+        pago_cop_10_propio = df_511[(df_511[ff_col] == 1) & (df_511['CONTROL_OPERATIVO'] == 10)]['EJERCIDO'].sum()
+
+        # Cap 1000 y 39801 de TODAS las URs (excepto la 511 para no duplicar)
         if tiene_partida:
-            df_511_normal = df_511[
-                ~((df_511['CAPITULO'] == 1) | (df_511['_Partida_full'] == 39801))
+            df_nom_otras = df[
+                ~df['ID_UNIDAD'].isin(urs_511) &
+                ((df['CAPITULO'] == 1) | (df['_Partida_full'] == 39801))
             ]
+            pago_cop_00_nom = df_nom_otras[(df_nom_otras[ff_col] == 6) & (df_nom_otras['CONTROL_OPERATIVO'] == 0)]['EJERCIDO'].sum()
+            pago_cop_10_nom = df_nom_otras[(df_nom_otras[ff_col] == 1) & (df_nom_otras['CONTROL_OPERATIVO'] == 10)]['EJERCIDO'].sum()
         else:
-            df_511_normal = df_511
+            pago_cop_00_nom = 0
+            pago_cop_10_nom = 0
 
-        pago_cop_00_normal = df_511_normal[cond_cop00.reindex(df_511_normal.index, fill_value=False)]['EJERCIDO'].sum()
-        pago_cop_10_normal = df_511_normal[cond_cop10.reindex(df_511_normal.index, fill_value=False)]['EJERCIDO'].sum()
-
-        # Parte 2: cap 1000 y 39801 de TODAS las URs
-        if tiene_partida:
-            df_nom_todas = df[
-                (df['CAPITULO'] == 1) | (df['_Partida_full'] == 39801)
-            ]
-        else:
-            df_nom_todas = pd.DataFrame()
-
-        cond_cop00_all = (df_nom_todas[ff_col] == 6) & (df_nom_todas['CONTROL_OPERATIVO'] == 0) if not df_nom_todas.empty else pd.Series([], dtype=bool)
-        cond_cop10_all = (df_nom_todas[ff_col] == 1) & (df_nom_todas['CONTROL_OPERATIVO'] == 10) if not df_nom_todas.empty else pd.Series([], dtype=bool)
-
-        pago_cop_00_nom = df_nom_todas[cond_cop00_all]['EJERCIDO'].sum() if not df_nom_todas.empty else 0
-        pago_cop_10_nom = df_nom_todas[cond_cop10_all]['EJERCIDO'].sum() if not df_nom_todas.empty else 0
-
-        pago_cop_00 = pago_cop_00_normal + pago_cop_00_nom
-        pago_cop_10 = pago_cop_10_normal + pago_cop_10_nom
+        pago_cop_00 = pago_cop_00_propio + pago_cop_00_nom
+        pago_cop_10 = pago_cop_10_propio + pago_cop_10_nom
 
     else:
         # Cualquier otra UR: excluir cap 1000 y 39801 (los paga la 511)
