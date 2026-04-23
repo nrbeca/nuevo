@@ -221,10 +221,18 @@ def mostrar_estado_datos():
 def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     """
     Calcula los pasivos pagados en COP desde el DataFrame de SICOP.
-    Busca los registros de la UR seleccionada y suma lo pagado en COP 00 y COP 10.
+
+    Regla de negocio:
+    - La UR 511 paga los pasivos de cap 1000 y partida 39801 de TODAS las URs.
+    - Por lo tanto:
+        * Para CUALQUIER UR distinta de 511: excluir cap 1000 y partida 39801
+          de su propio cálculo (esos los paga la 511).
+        * Para UR 511: incluir cap 1000 y partida 39801 de TODAS las URs
+          (no solo los de la 511).
     """
     if df_original is None or df_original.empty:
         return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
+
     ff_col = None
     for col_name in ['FUENTE_FINANCIAMIENTO', 'FF', 'FUENTE_FIN', 'FTE_FIN']:
         if col_name in df_original.columns:
@@ -234,25 +242,98 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
             or 'EJERCIDO' not in df_original.columns
             or 'ID_UNIDAD' not in df_original.columns):
         return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
+
     df = df_original.copy()
     df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
-    mapeo_ur   = config.get('mapeo_ur', {})
-    fusion_urs = config.get('fusion_urs', {})
-    urs_a_buscar = [ur_codigo, str(ur_codigo)]
-    for ur_orig, ur_dest in mapeo_ur.items():
-        if str(ur_dest) == str(ur_codigo):
-            urs_a_buscar.append(str(ur_orig))
-    for ur_orig, ur_dest in fusion_urs.items():
-        if str(ur_dest) == str(ur_codigo):
-            urs_a_buscar.append(str(ur_orig))
-    df_ur = df[df['ID_UNIDAD'].isin(urs_a_buscar)].copy()
-    if df_ur.empty:
-        return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
-    df_ur[ff_col] = pd.to_numeric(df_ur[ff_col], errors='coerce').fillna(0).astype(int)
-    df_ur['CONTROL_OPERATIVO'] = pd.to_numeric(df_ur['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
-    df_ur['EJERCIDO'] = pd.to_numeric(df_ur['EJERCIDO'], errors='coerce').fillna(0)
-    pago_cop_00 = df_ur[(df_ur[ff_col] == 6) & (df_ur['CONTROL_OPERATIVO'] == 0)]['EJERCIDO'].sum()
-    pago_cop_10 = df_ur[(df_ur[ff_col] == 1) & (df_ur['CONTROL_OPERATIVO'] == 10)]['EJERCIDO'].sum()
+    df[ff_col] = pd.to_numeric(df[ff_col], errors='coerce').fillna(0).astype(int)
+    df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
+    df['EJERCIDO'] = pd.to_numeric(df['EJERCIDO'], errors='coerce').fillna(0)
+
+    # Construir partida completa para poder filtrar 39801
+    if 'CAPITULO' in df.columns and 'PARTIDA_ESPECIFICA' in df.columns:
+        for col_n in ['CAPITULO', 'CONCEPTO', 'PARTIDA_GENERICA', 'PARTIDA_ESPECIFICA']:
+            if col_n in df.columns:
+                df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0).astype(int)
+        df['_Partida_full'] = (
+            df['CAPITULO'] * 10000 +
+            df['CONCEPTO'] * 1000 +
+            df['PARTIDA_GENERICA'] * 100 +
+            df['PARTIDA_ESPECIFICA'] * 10
+        ).astype(int)
+        tiene_partida = True
+    else:
+        tiene_partida = False
+
+    # Condiciones de pago en COP
+    cond_cop00 = (df[ff_col] == 6) & (df['CONTROL_OPERATIVO'] == 0)
+    cond_cop10 = (df[ff_col] == 1) & (df['CONTROL_OPERATIVO'] == 10)
+
+    if ur_codigo == '511':
+        # UR 511: paga cap 1000 y 39801 de TODAS las URs
+        # Parte 1: pagos normales de la 511 (excluyendo cap 1000 y 39801)
+        mapeo_ur  = config.get('mapeo_ur', {})
+        fusion_urs = config.get('fusion_urs', {})
+        urs_511 = ['511']
+        for ur_orig, ur_dest in mapeo_ur.items():
+            if str(ur_dest) == '511':
+                urs_511.append(str(ur_orig))
+        for ur_orig, ur_dest in fusion_urs.items():
+            if str(ur_dest) == '511':
+                urs_511.append(str(ur_orig))
+
+        df_511 = df[df['ID_UNIDAD'].isin(urs_511)].copy()
+        if tiene_partida:
+            df_511_normal = df_511[
+                ~((df_511['CAPITULO'] == 1) | (df_511['_Partida_full'] == 39801))
+            ]
+        else:
+            df_511_normal = df_511
+
+        pago_cop_00_normal = df_511_normal[cond_cop00.reindex(df_511_normal.index, fill_value=False)]['EJERCIDO'].sum()
+        pago_cop_10_normal = df_511_normal[cond_cop10.reindex(df_511_normal.index, fill_value=False)]['EJERCIDO'].sum()
+
+        # Parte 2: cap 1000 y 39801 de TODAS las URs
+        if tiene_partida:
+            df_nom_todas = df[
+                (df['CAPITULO'] == 1) | (df['_Partida_full'] == 39801)
+            ]
+        else:
+            df_nom_todas = pd.DataFrame()
+
+        cond_cop00_all = (df_nom_todas[ff_col] == 6) & (df_nom_todas['CONTROL_OPERATIVO'] == 0) if not df_nom_todas.empty else pd.Series([], dtype=bool)
+        cond_cop10_all = (df_nom_todas[ff_col] == 1) & (df_nom_todas['CONTROL_OPERATIVO'] == 10) if not df_nom_todas.empty else pd.Series([], dtype=bool)
+
+        pago_cop_00_nom = df_nom_todas[cond_cop00_all]['EJERCIDO'].sum() if not df_nom_todas.empty else 0
+        pago_cop_10_nom = df_nom_todas[cond_cop10_all]['EJERCIDO'].sum() if not df_nom_todas.empty else 0
+
+        pago_cop_00 = pago_cop_00_normal + pago_cop_00_nom
+        pago_cop_10 = pago_cop_10_normal + pago_cop_10_nom
+
+    else:
+        # Cualquier otra UR: excluir cap 1000 y 39801 (los paga la 511)
+        mapeo_ur  = config.get('mapeo_ur', {})
+        fusion_urs = config.get('fusion_urs', {})
+        urs_a_buscar = [ur_codigo, str(ur_codigo)]
+        for ur_orig, ur_dest in mapeo_ur.items():
+            if str(ur_dest) == str(ur_codigo):
+                urs_a_buscar.append(str(ur_orig))
+        for ur_orig, ur_dest in fusion_urs.items():
+            if str(ur_dest) == str(ur_codigo):
+                urs_a_buscar.append(str(ur_orig))
+
+        df_ur = df[df['ID_UNIDAD'].isin(urs_a_buscar)].copy()
+        if df_ur.empty:
+            return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
+
+        # Excluir cap 1000 y partida 39801
+        if tiene_partida:
+            df_ur = df_ur[
+                ~((df_ur['CAPITULO'] == 1) | (df_ur['_Partida_full'] == 39801))
+            ]
+
+        pago_cop_00 = df_ur[(df_ur[ff_col] == 6) & (df_ur['CONTROL_OPERATIVO'] == 0)]['EJERCIDO'].sum()
+        pago_cop_10 = df_ur[(df_ur[ff_col] == 1) & (df_ur['CONTROL_OPERATIVO'] == 10)]['EJERCIDO'].sum()
+
     return {'PagoCOP_00': round(pago_cop_00, 2), 'PagoCOP_10': round(pago_cop_10, 2)}
 
 def calcular_cop_62_67_desde_sicop(df_original):
