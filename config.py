@@ -1,2376 +1,1170 @@
-# ============================================================================
-# CONFIGURACIÓN GLOBAL PARA SADER REPORTES
-# ============================================================================
-
-from datetime import date, timedelta
-from dateutil.relativedelta import relativedelta, MO
-from decimal import Decimal, ROUND_HALF_UP
-try:
-    from num2words import num2words
-except ImportError:
-    def num2words(n, lang='es'):
-        return str(n)
-
-# ============================================================================
-# LOGO BASE64
-# ============================================================================
-
-LOGO_BASE64 = """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
 """
-# ============================================================================
-# MESES Y MAPEOS
-# ============================================================================
+SADER - Sistema de Reportes Presupuestarios
+Versión con soporte simultáneo MAP/SICOP
+"""
 
-MONTH_NAMES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
-MONTH_NAMES_FULL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import date, datetime
+import io
+import json
+import os
+import pickle
 
-MONTH_MAP = {name: idx + 1 for idx, name in enumerate(MONTH_NAMES)}
+from config import (
+    MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
+    get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
+    DENOMINACIONES_2026, numero_a_letras_mx, PARTIDAS_ESPECIFICAS
+)
 
-# ============================================================================
-# MAPEO DE URs (compartido entre MAP y SICOP)
-# ============================================================================
-
-UR_MAP = {
-    121: 260, 122: 261, 123: 262, 124: 263, 125: 264, 126: 265, 127: 266, 128: 267,
-    129: 268, 130: 269, 131: 270, 132: 271, 133: 272, 134: 273, 135: 274, 136: 275,
-    137: 276, 138: 277, 139: 278, 140: 279, 141: 280, 142: 281, 143: 282, 144: 283,
-    145: 284, 146: 285, 147: 286, 148: 287, 149: 288, 150: 289, 151: 290, 152: 291,
-    153: 292, 108: 810, 215: 220, 300: 225, 310: 226, 700: 227, 600: 230, 612: 231,
-    312: 232, 315: 233, 400: 235, 311: 237, 314: 245, 113: 250
-}
-
-# ============================================================================
-# CONFIGURACIÓN MAP - PROGRAMAS 2025
-# ============================================================================
-
-PROGRAMAS_NOMBRES_2025 = {
-    'B004': 'Adquisición de leche nacional',
-    'S052': 'Programa de Abasto Social de Leche a cargo de Liconsa, S.A. de C.V.',
-    'S053': 'Programa de Abasto Rural a cargo de Diconsa, S.A. de C.V.',
-    'S263': 'Sanidad e Inocuidad Agroalimentaria',
-    'S290': 'Precios de Garantía a Productos Alimentarios Básicos',
-    'S292': 'Fertilizantes',
-    'S293': 'Producción para el Bienestar',
-    'S304': 'Programa de Fomento a la Agricultura, Ganadería, Pesca y Acuicultura',
-    'P001': 'Diseño y Aplicación de la Política Agropecuaria',
-    'E001': 'Desarrollo, aplicación de programas educativos e investigación en materia agroalimentaria',
-    'E006': 'Generación de Proyectos de Investigación',
-    'G001': 'Regulación, supervisión y aplicación de las políticas públicas en materia agropecuaria',
-    'O001': 'Actividades de apoyo a la función pública y buen gobierno',
-    'M001': 'Actividades de apoyo administrativo',
-    'U027': 'Cosechando Soberanía',
-    'W001': 'Operaciones ajenas',
-}
-
-PROGRAMAS_ESPECIFICOS_2025 = ['B004', 'S052', 'S053', 'S263', 'S290', 'S292', 'S293', 'S304']
-
-NOMBRES_ESPECIALES_2025 = {
-    'S263': 'Sanidad e Inocuidad Agroalimentaria 3/',
-    'S293': 'Producción para el Bienestar 4/',
-    'S304': 'Programa de Fomento a la Agricultura, Ganadería, Pesca y Acuicultura 5/',
-}
-
-FUSION_PROGRAMAS_2025 = {}
+# Importar PASIVOS si existen (opcional)
+try:
+    from config import PASIVOS_2026, obtener_pasivos_ur
+except ImportError:
+    PASIVOS_2026 = {}
+    def obtener_pasivos_ur(ur_codigo, usar_2026=True):
+        return {'Devengado': 0, 'Pagado': 0, 'Pasivo': 0}
+from map_processor import procesar_map
+from sicop_processor import procesar_sicop
+from excel_map import generar_excel_map
+from excel_sicop import generar_excel_sicop
+from austeridad_processor import (
+    procesar_sicop_austeridad,
+    generar_dashboard_austeridad_desde_sicop, obtener_urs_disponibles_sicop
+)
+from excel_austeridad import generar_excel_austeridad
 
 # ============================================================================
-# CONFIGURACIÓN MAP - PROGRAMAS 2026
+# CONFIGURACIÓN DE PERSISTENCIA
 # ============================================================================
 
-PROGRAMAS_NOMBRES_2026 = {
-    'B005': 'Producción y comercialización de Biológicos Veterinarios',
-    'B006': 'Adquisición, industrialización y comercialización de productos agroalimentarios',
-    'K017': 'Infraestructura para el desarrollo rural sustentable',
-    'M001': 'Actividades de apoyo administrativo',
-    'O001': 'Actividades de apoyo a la función pública y buen gobierno',
-    'P021': 'Aplicación de la Política Agropecuaria',
-    'Q004': 'Desarrollo y aplicación de programas y proyectos educativos y de investigación en el sector agroalimentario',
-    'S052': 'Programa de Abasto Social y Precios de Garantía a cargo de Leche para el Bienestar, S.A. de C.V.',
-    'S053': 'Programa de Abasto Rural',
-    'S263': 'Sanidad e Inocuidad Agroalimentaria',
-    'S290': 'Acopio para el Bienestar',
-    'S292': 'Fertilizantes para el Bienestar',
-    'S293': 'Producción para el Bienestar',
-    'S304': 'Pesca y Acuacultura Sustentables',
-    'S318': 'Comercio Justo',
-    'U027': 'Soberanía Alimentaria',
-    'W001': 'Operaciones ajenas',
-    # Programas anteriores que pueden aparecer en datos históricos
-    'B004': 'Adquisición de leche nacional',
-    'P001': 'Diseño y Aplicación de la Política Agropecuaria',
-    'E001': 'Desarrollo, aplicación de programas educativos e investigación en materia agroalimentaria',
-    'E006': 'Generación de Proyectos de Investigación',
-    'G001': 'Regulación, supervisión y aplicación de las políticas públicas',
-}
+DATA_DIR = "data_persistente"
+MAP_DATA_FILE = os.path.join(DATA_DIR, "map_data.pkl")
+SICOP_DATA_FILE = os.path.join(DATA_DIR, "sicop_data.pkl")
+METADATA_FILE = os.path.join(DATA_DIR, "metadata.json")
 
-# Orden: B006 primero, luego S052-S304, S318, U027
-PROGRAMAS_ESPECIFICOS_2026 = ['B006', 'S052', 'S053', 'S263', 'S290', 'S292', 'S293', 'S304', 'S318', 'U027']
+def asegurar_directorio():
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
 
-NOMBRES_ESPECIALES_2026 = {
-    'S263': 'Sanidad e Inocuidad Agroalimentaria 3/',
-    'S293': 'Producción para el Bienestar 4/',
-    'S304': 'Pesca y Acuacultura Sustentables 5/',
-}
+def guardar_datos_map(resultados, filename):
+    asegurar_directorio()
+    with open(MAP_DATA_FILE, 'wb') as f:
+        pickle.dump(resultados, f)
+    actualizar_metadata('map', filename)
 
-FUSION_PROGRAMAS_2026 = {
-    'B004': 'B006',
-}
+def guardar_datos_sicop(resultados, df_original, filename):
+    asegurar_directorio()
+    data = {'resultados': resultados, 'df_original': df_original}
+    with open(SICOP_DATA_FILE, 'wb') as f:
+        pickle.dump(data, f)
+    actualizar_metadata('sicop', filename)
 
-# ============================================================================
-# CONFIGURACIÓN SICOP - DENOMINACIONES URs 2025
-# ============================================================================
+def cargar_datos_map():
+    if os.path.exists(MAP_DATA_FILE):
+        try:
+            with open(MAP_DATA_FILE, 'rb') as f:
+                return pickle.load(f)
+        except:
+            return None
+    return None
 
-DENOMINACIONES_2025 = {
-    '100': 'Secretaría',
-    '109': 'Dirección General de Normalización Agroalimentaria',
-    '110': 'Unidad de Asuntos Jurídicos, Derechos Humanos y Normalización',
-    '111': 'Dirección General de Comunicación Social',
-    '112': 'Dirección General de Enlace Legislativo',
-    '117': 'Coordinación General de Asuntos Internacionales',
-    '200': 'Subsecretaría de Agricultura y Desarrollo Rural',
-    '212': 'Dirección General de Organización para la Productividad',
-    '214': 'Dirección General de la Autosuficiencia Alimentaria',
-    '220': 'Coordinación General de Bienestar para el Campo',
-    '221': 'Dirección General de Fertilizantes para el Bienestar',
-    '222': 'Dirección General de Producción para el Bienestar',
-    '225': 'Coordinación General de Producción Agrícola y Ganadera',
-    '226': 'Dirección General de Producción Agrícola',
-    '227': 'Dirección General de Producción Ganadera',
-    '228': 'Dirección General de Implementación de Acuerdos Sectoriales',
-    '230': 'Coordinación General de Comercialización y Financiamiento',
-    '231': 'Dirección General de Precios y Ordenamiento Comercial',
-    '232': 'Dirección General de Financiamiento y Gestión de Riesgos',
-    '233': 'Dirección General de Agregación de Valor y Comercialización',
-    '235': 'Coordinación General de Eficiencia Hídrica Agroalimentaria',
-    '236': 'Dirección General de Eficiencia Hídrica en el Riego',
-    '237': 'Dirección General de Eficiencia Hídrica en el Temporal',
-    '240': 'Coordinación General de Innovación y Transición Agroecológica',
-    '241': 'Dirección General de Innovación',
-    '242': 'Dirección General de Transición Agroecológica',
-    '245': 'Coordinación General de Sustentabilidad y Resiliencia Climática',
-    '246': 'Dirección General de Sustentabilidad',
-    '247': 'Dirección General de Financiamiento Verde',
-    '250': 'Coordinación General de Operación Territorial',
-    '251': 'Dirección General de Integración Territorial de Programas',
-    '252': 'Dirección General de Intervención Territorial Estratégica',
-    '260': 'Oficina de Representación en Aguascalientes',
-    '261': 'Oficina de Representación en Baja California',
-    '262': 'Oficina de Representación en Baja California Sur',
-    '263': 'Oficina de Representación en Campeche',
-    '264': 'Oficina de Representación en Coahuila',
-    '265': 'Oficina de Representación en Colima',
-    '266': 'Oficina de Representación en Chiapas',
-    '267': 'Oficina de Representación en Chihuahua',
-    '268': 'Oficina de Representación en la Ciudad de México',
-    '269': 'Oficina de Representación en Durango',
-    '270': 'Oficina de Representación en Guanajuato',
-    '271': 'Oficina de Representación en Guerrero',
-    '272': 'Oficina de Representación en Hidalgo',
-    '273': 'Oficina de Representación en Jalisco',
-    '274': 'Oficina de Representación en el Estado de México',
-    '275': 'Oficina de Representación en Michoacán',
-    '276': 'Oficina de Representación en Morelos',
-    '277': 'Oficina de Representación en Nayarit',
-    '278': 'Oficina de Representación en Nuevo León',
-    '279': 'Oficina de Representación en Oaxaca',
-    '280': 'Oficina de Representación en Puebla',
-    '281': 'Oficina de Representación en Querétaro',
-    '282': 'Oficina de Representación en Quintana Roo',
-    '283': 'Oficina de Representación en San Luis Potosí',
-    '284': 'Oficina de Representación en Sinaloa',
-    '285': 'Oficina de Representación en Sonora',
-    '286': 'Oficina de Representación en Tabasco',
-    '287': 'Oficina de Representación en Tamaulipas',
-    '288': 'Oficina de Representación en Tlaxcala',
-    '289': 'Oficina de Representación en Veracruz',
-    '290': 'Oficina de Representación en Yucatán',
-    '291': 'Oficina de Representación en Zacatecas',
-    '292': 'Oficina de Representación en la Región Lagunera',
-    '410': 'Dirección General de Fortalecimiento a la Agricultura Familiar',
-    '411': 'Dirección General de Integración Económica',
-    '413': 'Dirección General de Investigación, Desarrollo Tecnológico y Extensionismo',
-    '500': 'Unidad de Administración y Finanzas',
-    '510': 'Dirección General de Programación, Presupuesto y Finanzas',
-    '511': 'Dirección General de Capital Humano y Desarrollo Organizacional',
-    '512': 'Dirección General de Recursos Materiales, Inmuebles y Servicios',
-    '513': 'Dirección General de Tecnologías de la Información y Comunicaciones',
-    '610': 'Dirección General de Comercialización',
-    '611': 'Dirección General de Administración de Riesgos de Precios',
-    '710': 'Dirección General de Repoblamiento Ganadero',
-    '711': 'Dirección General de Sustentabilidad de Tierras de Uso Ganadero',
-    '800': 'Coordinación General de Información, Inteligencia y Evaluación',
-    '810': 'Dirección General de Evaluación, Políticas y Programas',
-    '811': 'Dirección General del Servicio de Información Agroalimentaria y Pesquera',
-    '812': 'Dirección General de Planeación',
-    'B00': 'Servicio Nacional de Sanidad, Inocuidad y Calidad Agroalimentaria',
-    'C00': 'Servicio Nacional de Inspección y Certificación de Semillas',
-    'D00': 'Colegio Superior Agropecuario del Estado de Guerrero',
-    'I00': 'Comisión Nacional de Acuacultura y Pesca',
-    'A1I': 'Universidad Autónoma Chapingo',
-    'AFU': 'Comité Nacional para el Desarrollo Sustentable de la Caña de Azúcar',
-    'I6L': 'Fideicomiso de Riesgo Compartido',
-    'I9H': 'Instituto Nacional para el Desarrollo de Capacidades del Sector Rural, A.C.',
-    'IZC': 'Colegio de Postgraduados',
-    'IZI': 'Comisión Nacional de las Zonas Áridas',
-    'JAG': 'Instituto Nacional de Investigaciones Forestales, Agrícolas y Pecuarias',
-    'JBP': 'Seguridad Alimentaria Mexicana',
-    'RJL': 'Instituto Mexicano de Investigación en Pesca y Acuacultura Sustentables',
-    'VSS': 'Alimentación para el Bienestar, S.A de C.V.',
-    'VST': 'Leche para el Bienestar, S.A. de C.V.',
-}
+def cargar_datos_sicop():
+    if os.path.exists(SICOP_DATA_FILE):
+        try:
+            with open(SICOP_DATA_FILE, 'rb') as f:
+                return pickle.load(f)
+        except:
+            return None
+    return None
 
-SECTOR_CENTRAL_2025 = ['100', '109', '110', '111', '112', '117', '200', '212', '214',
-                       '220', '221', '222', '225', '226', '227', '228', '230', '231', '232', '233',
-                       '235', '236', '237', '240', '241', '242', '245', '246', '247', '250', '251', '252',
-                       '410', '411', '413', '500', '510', '511', '512', '513',
-                       '610', '611', '710', '711', '800', '810', '811', '812']
+def actualizar_metadata(tipo, filename):
+    asegurar_directorio()
+    metadata = cargar_metadata()
+    metadata[tipo] = {
+        'filename': filename,
+        'fecha_carga': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'usuario': 'Sistema'
+    }
+    with open(METADATA_FILE, 'w') as f:
+        json.dump(metadata, f, indent=2)
 
-OFICINAS_2025 = ['260', '261', '262', '263', '264', '265', '266', '267', '268', '269',
-                 '270', '271', '272', '273', '274', '275', '276', '277', '278', '279',
-                 '280', '281', '282', '283', '284', '285', '286', '287', '288', '289',
-                 '290', '291', '292']
-
-ORGANOS_DESCONCENTRADOS_2025 = ['B00', 'C00', 'D00', 'I00']
-
-ENTIDADES_PARAESTATALES_2025 = ['A1I', 'AFU', 'I6L', 'I9H', 'IZC', 'IZI', 'JAG', 'JBP', 'RJL', 'VSS', 'VST']
-
-MAPEO_UR_2025 = {
-    'G00': '811', 108: '810', 113: '250',
-    121: '260', 122: '261', 123: '262', 124: '263', 125: '264', 126: '265', 127: '266', 128: '267', 129: '268', 130: '269',
-    131: '270', 132: '271', 133: '272', 134: '273', 135: '274', 136: '275', 137: '276', 138: '277', 139: '278', 140: '279',
-    141: '280', 142: '281', 143: '282', 144: '283', 145: '284', 146: '285', 147: '286', 148: '287', 149: '288', 150: '289',
-    151: '290', 152: '291', 153: '292',
-    215: '220', 300: '225', 310: '226', 700: '227', 600: '230', 612: '231', 312: '232', 315: '233', 400: '235', 311: '237', 314: '245',
-}
+def cargar_metadata():
+    if os.path.exists(METADATA_FILE):
+        try:
+            with open(METADATA_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
 
 # ============================================================================
-# CONFIGURACIÓN SICOP - DENOMINACIONES URs 2026
+# COLORES Y CONFIGURACIÓN DE PÁGINA
 # ============================================================================
 
-DENOMINACIONES_2026 = {
-    '100': 'Secretaría',
-    '110': 'Unidad de Asuntos Jurídicos',
-    '106': 'Coordinación de Legislación y Consulta',
-    '107': 'Coordinación de lo Contencioso',
-    '111': 'Dirección General de Comunicación Social',
-    '112': 'Coordinación de Atención Legislativa',
-    '117': 'Coordinación de Asuntos Internacionales',
-    '119': 'Dirección General de Planeación y Evaluación de Políticas y Programas',
-    '120': 'Dirección General del Servicio de Información Agroalimentaria y Pesquera',
-    '200': 'Subsecretaría de Agricultura y Desarrollo Rural',
-    '220': 'Unidad de Bienestar para el Campo',
-    '221': 'Dirección General de Fertilizantes para el Bienestar',
-    '222': 'Dirección General de Producción para el Bienestar',
-    '250': 'Unidad de Operación Territorial y Eficiencia Hídrica Agroalimentaria',
-    '252': 'Dirección General de Intervención Territorial Estratégica',
-    '253': 'Dirección General de Eficacia Hídrica en Riego y Temporal',
-    '260': 'Oficina de Representación en Aguascalientes',
-    '261': 'Oficina de Representación en Baja California',
-    '262': 'Oficina de Representación en Baja California Sur',
-    '263': 'Oficina de Representación en Campeche',
-    '264': 'Oficina de Representación en Coahuila',
-    '265': 'Oficina de Representación en Colima',
-    '266': 'Oficina de Representación en Chiapas',
-    '267': 'Oficina de Representación en Chihuahua',
-    '268': 'Oficina de Representación en la Ciudad de México',
-    '269': 'Oficina de Representación en Durango',
-    '270': 'Oficina de Representación en Guanajuato',
-    '271': 'Oficina de Representación en Guerrero',
-    '272': 'Oficina de Representación en Hidalgo',
-    '273': 'Oficina de Representación en Jalisco',
-    '274': 'Oficina de Representación en el Estado de México',
-    '275': 'Oficina de Representación en Michoacán',
-    '276': 'Oficina de Representación en Morelos',
-    '277': 'Oficina de Representación en Nayarit',
-    '278': 'Oficina de Representación en Nuevo León',
-    '279': 'Oficina de Representación en Oaxaca',
-    '280': 'Oficina de Representación en Puebla',
-    '281': 'Oficina de Representación en Querétaro',
-    '282': 'Oficina de Representación en Quintana Roo',
-    '283': 'Oficina de Representación en San Luis Potosí',
-    '284': 'Oficina de Representación en Sinaloa',
-    '285': 'Oficina de Representación en Sonora',
-    '286': 'Oficina de Representación en Tabasco',
-    '287': 'Oficina de Representación en Tamaulipas',
-    '288': 'Oficina de Representación en Tlaxcala',
-    '289': 'Oficina de Representación en Veracruz',
-    '290': 'Oficina de Representación en Yucatán',
-    '291': 'Oficina de Representación en Zacatecas',
-    '292': 'Oficina de Representación en la Región Lagunera',
-    '500': 'Unidad de Administración y Finanzas',
-    '510': 'Dirección General de Programación, Presupuesto y Finanzas',
-    '511': 'Dirección General de Capital Humano y Desarrollo Organizacional',
-    '512': 'Dirección General de Recursos Materiales, Inmuebles y Servicios',
-    '513': 'Dirección General de Tecnologías de la Información y Comunicaciones',
-    '900': 'Coordinación General de Producción, Comercialización, Sustentabilidad e Innovación',
-    '910': 'Unidad de Innovación, Sustentabilidad y Resiliencia Climática',
-    '911': 'Dirección General de Desarrollo e Innovación',
-    '912': 'Dirección General de Sustentabilidad y Resiliencia Climática',
-    '920': 'Unidad de Producción, Comercialización y Financiamiento',
-    '921': 'Dirección General de Producción Agrícola',
-    '922': 'Dirección General de Producción Ganadera, Pesquera y Acuícola',
-    '923': 'Dirección General de Precios, Ordenamiento Comercial y Valor Agregado',
-    '924': 'Dirección General de Financiamiento y Gestión de Riesgos',
-    'B00': 'Servicio Nacional de Sanidad, Inocuidad y Calidad Agroalimentaria',
-    'C00': 'Servicio Nacional de Inspección y Certificación de Semillas',
-    'D00': 'Colegio Superior Agropecuario del Estado de Guerrero',
-    'I00': 'Comisión Nacional de Acuacultura y Pesca',
-    'A1I': 'Universidad Autónoma Chapingo',
-    'AFU': 'Comité Nacional para el Desarrollo Sustentable de la Caña de Azúcar',
-    'I6L': 'Fideicomiso de Riesgo Compartido',
-    'I9H': 'Instituto Nacional para el Desarrollo de Capacidades del Sector Rural, A.C.',
-    'IZC': 'Colegio de Postgraduados',
-    'IZI': 'Comisión Nacional de las Zonas Áridas',
-    'JAG': 'Instituto Nacional de Investigaciones Forestales, Agrícolas y Pecuarias',
-    'JAL': 'Productora de Semillas para el Bienestar',
-    'JBK': 'Productora Nacional de Biológicos Veterinarios',
-    'RJL': 'Instituto Mexicano de Investigación en Pesca y Acuacultura Sustentables',
-    'VSS': 'Alimentación para el Bienestar, S.A de C.V.',
-    'VST': 'Leche para el Bienestar, S.A. de C.V.',
-}
+COLOR_AZUL = '#4472C4'
+COLOR_NARANJA = '#ED7D31'
+COLOR_VINO = '#9B2247'
+COLOR_BEIGE = '#E6D194'
+COLOR_GRIS = '#C4BFB6'
+COLOR_GRIS_EXCEL = '#D9D9D6'
+COLOR_VERDE = '#002F2A'
 
-SECTOR_CENTRAL_2026 = ['100', '110', '106', '107', '111', '112', '117', '119', '120', '200',
-                       '220', '221', '222', '250', '252', '253',
-                       '500', '510', '511', '512', '513',
-                       '900', '910', '911', '912', '920', '921', '922', '923', '924']
+st.set_page_config(
+    page_title="SADER - Reportes",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-OFICINAS_2026 = ['260', '261', '262', '263', '264', '265', '266', '267', '268', '269',
-                 '270', '271', '272', '273', '274', '275', '276', '277', '278', '279',
-                 '280', '281', '282', '283', '284', '285', '286', '287', '288', '289',
-                 '290', '291', '292']
+# ============================================================================
+# AUTENTICACIÓN
+# ============================================================================
 
-ORGANOS_DESCONCENTRADOS_2026 = ['B00', 'C00', 'D00', 'I00']
+def verificar_contraseña():
+    if st.session_state.get('autenticado', False):
+        return True
 
-ENTIDADES_PARAESTATALES_2026 = ['A1I', 'AFU', 'I6L', 'I9H', 'IZC', 'IZI', 'JAG', 'JAL', 'JBK', 'RJL', 'VSS', 'VST']
+    st.markdown("""
+    <style>
+        .login-header { text-align: center; color: #9B2247; margin-bottom: 2rem; }
+        .login-header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .login-header p { color: #666; font-size: 0.9rem; }
+    </style>
+    """, unsafe_allow_html=True)
 
-MAPEO_UR_2026_BASE = {
-    'G00': '811', 108: '810', 113: '250',
-    121: '260', 122: '261', 123: '262', 124: '263', 125: '264', 126: '265', 127: '266', 128: '267', 129: '268', 130: '269',
-    131: '270', 132: '271', 133: '272', 134: '273', 135: '274', 136: '275', 137: '276', 138: '277', 139: '278', 140: '279',
-    141: '280', 142: '281', 143: '282', 144: '283', 145: '284', 146: '285', 147: '286', 148: '287', 149: '288', 150: '289',
-    151: '290', 152: '291', 153: '292',
-    215: '220', 300: '225', 310: '226', 700: '227', 600: '230', 612: '231', 312: '232', 315: '233', 400: '235', 311: '237', 314: '245',
-}
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("""
+        <div class="login-header">
+            <h1>🌾 SADER</h1>
+            <p>Sistema de Reportes Presupuestarios</p>
+        </div>
+        """, unsafe_allow_html=True)
+        with st.form("login_form"):
+            password = st.text_input("Contraseña", type="password", placeholder="Ingresa la contraseña")
+            submit = st.form_submit_button("Ingresar", use_container_width=True)
+            if submit:
+                if password == "SADER 2025":
+                    st.session_state['autenticado'] = True
+                    st.rerun()
+                else:
+                    st.error("Contraseña incorrecta. Intenta de nuevo.")
+        st.markdown("""
+        <div style="text-align: center; margin-top: 2rem; color: #999; font-size: 0.8rem;">
+            Secretaría de Agricultura y Desarrollo Rural
+        </div>
+        """, unsafe_allow_html=True)
+    return False
 
-FUSION_URS_2026 = {
-    '810': '119', '812': '119',
-    '800': '120', '811': '120',
-    '235': '250',
-    '236': '253', '237': '253',
-    '225': '900',
-    '245': '910',
-    '241': '911',
-    '246': '912', '247': '912',
-    '230': '920',
-    '226': '921',
-    '227': '922',
-    '231': '923',
-    '232': '924',
-}
+if not verificar_contraseña():
+    st.stop()
+
+# ============================================================================
+# CSS
+# ============================================================================
+
+st.markdown("""
+<style>
+    .stApp { background-color: #FFFFFF; }
+    .main-header { background: linear-gradient(135deg, #9B2247 0%, #7a1b38 100%); color: white; padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; text-align: center; }
+    .main-header h1 { margin: 0; font-size: 2rem; color: white; }
+    .main-header p { margin: 0.5rem 0 0 0; color: white; opacity: 0.9; }
+    .instrucciones-box { background: #f8f8f8; border: 1px solid #E6D194; border-radius: 10px; padding: 1.5rem; }
+    .instrucciones-box h4 { color: #9B2247; margin-top: 0; }
+    section[data-testid="stSidebar"] { background: linear-gradient(180deg, #9B2247 0%, #7a1b38 100%); }
+    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] span { color: white !important; }
+    section[data-testid="stSidebar"] h3 { color: white !important; }
+    .stDownloadButton > button { background: linear-gradient(135deg, #002F2A 0%, #004d40 100%); color: white; border: none; border-radius: 8px; padding: 0.75rem 2rem; font-weight: 600; }
+    .stTabs [aria-selected="true"] { background: #9B2247 !important; color: white !important; }
+    h1, h2, h3, h4 { color: #9B2247; }
+    .data-status { font-size: 0.85rem; padding: 0.5rem; border-radius: 5px; margin: 0.5rem 0; }
+    .data-loaded { background: #e8f5e9; color: #2e7d32; }
+    .data-empty { background: #fff3e0; color: #ef6c00; }
+</style>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # FUNCIONES AUXILIARES
 # ============================================================================
 
-def round_like_excel(value, decimals=2):
-    """Redondea como Excel (ROUND_HALF_UP)"""
-    import pandas as pd
-    if pd.isna(value):
-        return 0
-    d = Decimal(str(value))
-    return float(d.quantize(Decimal(10) ** -decimals, rounding=ROUND_HALF_UP))
+def format_currency(value):
+    if pd.isna(value) or value == 0:
+        return "$0.00"
+    return f"${value:,.2f}"
 
+def format_currency_millions(value):
+    if pd.isna(value) or value == 0:
+        return "$0.00 M"
+    return f"${value/1_000_000:,.2f} M"
 
-def numero_a_letras_mx(numero):
-    """Convierte número a texto en español mexicano con formato: primera letra mayúscula, resto minúsculas"""
-    entero = int(numero)
-    centavos = int(round((numero - entero) * 100))
-    if entero == 0:
-        texto_entero = "cero"
-    else:
-        # num2words devuelve en minúsculas
-        texto_entero = num2words(entero, lang='es')
-    # Capitalizar solo la primera letra de todo el texto
-    if texto_entero:
-        texto_entero = texto_entero[0].upper() + texto_entero[1:]
-    return f"{texto_entero} pesos {centavos:02d}/100 M.N."
+def create_kpi_card(label, value, subtitle="", bg_color=None):
+    return f'<div style="background:white;border-radius:12px;padding:1rem;text-align:center;border:2px solid #9B2247;box-shadow:0 2px 8px rgba(0,0,0,0.08);"><div style="font-size:0.75rem;color:#333;text-transform:uppercase;">{label}</div><div style="font-size:1.3rem;font-weight:700;color:#9B2247;">{value}</div><div style="font-size:0.7rem;color:#666;">{subtitle}</div></div>'
 
+def mostrar_estado_datos():
+    metadata = cargar_metadata()
+    col1, col2 = st.columns(2)
+    with col1:
+        if 'map' in metadata:
+            st.markdown(f'<div class="data-status data-loaded"> <strong>MAP cargado:</strong> {metadata["map"]["filename"]}<br><small>Actualizado: {metadata["map"]["fecha_carga"]}</small></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="data-status data-empty"> <strong>MAP:</strong> Sin datos cargados</div>', unsafe_allow_html=True)
+    with col2:
+        if 'sicop' in metadata:
+            st.markdown(f'<div class="data-status data-loaded"> <strong>SICOP cargado:</strong> {metadata["sicop"]["filename"]}<br><small>Actualizado: {metadata["sicop"]["fecha_carga"]}</small></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="data-status data-empty"> <strong>SICOP:</strong> Sin datos cargados</div>', unsafe_allow_html=True)
 
-def formatear_fecha(fecha):
-    """Formatea fecha en español"""
-    meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
-             "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-    return f"{fecha.day} de {meses[fecha.month - 1]} de {fecha.year}"
+def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
+    """
+    Calcula los pasivos pagados desde el DataFrame de SICOP diario.
 
+    Los pasivos pagados = registros con CONTROL_OPERATIVO == 10
+    (pasivos del ejercicio anterior pagados en el ejercicio actual).
 
-def obtener_ultimo_dia_habil(fecha_referencia=None):
-    """Obtiene el último día hábil antes de la fecha de referencia"""
-    if fecha_referencia is None:
-        fecha_referencia = date.today()
-    año_actual = fecha_referencia.year
-    festivos = [
-        date(año_actual, 1, 1), date(año_actual, 5, 1), date(año_actual, 5, 5),
-        date(año_actual, 9, 16), date(año_actual, 12, 25),
-        date(año_actual, 2, 1) + relativedelta(weekday=MO(1)),
-        date(año_actual, 3, 1) + relativedelta(weekday=MO(3)),
-        date(año_actual, 11, 1) + relativedelta(weekday=MO(3))
-    ]
-    dia_analizado = fecha_referencia - timedelta(days=1)
-    while True:
-        if dia_analizado.weekday() < 5 and dia_analizado not in festivos:
+    No se filtra por Fuente de Financiamiento porque el SICOP diario
+    no tiene esa columna.
+    """
+    if df_original is None or df_original.empty:
+        return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
+
+    required = ['ID_UNIDAD', 'CONTROL_OPERATIVO', 'EJERCIDO']
+    if not all(c in df_original.columns for c in required):
+        return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
+
+    df = df_original.copy()
+    df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
+    df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
+
+    for col_n in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
+        if col_n in df.columns:
+            df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0)
+
+    eje_cols = [c for c in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE'] if c in df.columns]
+    df['_EJERCIDO_REAL'] = sum(df[c] for c in eje_cols) if eje_cols else 0
+
+    # Resolver URs que mapean a esta UR (fusiones 2026)
+    mapeo_ur   = config.get('mapeo_ur', {})
+    fusion_urs = config.get('fusion_urs', {})
+    urs_a_buscar = {ur_codigo, str(ur_codigo)}
+    for ur_orig, ur_dest in mapeo_ur.items():
+        if str(ur_dest) == str(ur_codigo):
+            urs_a_buscar.add(str(ur_orig))
+    for ur_orig, ur_dest in fusion_urs.items():
+        if str(ur_dest) == str(ur_codigo):
+            urs_a_buscar.add(str(ur_orig))
+
+    df_ur = df[df['ID_UNIDAD'].isin(urs_a_buscar)]
+    if df_ur.empty:
+        return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
+
+    # COP 10 = pasivos del ejercicio anterior pagados en el actual
+    pago_cop_10 = round(float(df_ur[df_ur['CONTROL_OPERATIVO'] == 10]['_EJERCIDO_REAL'].sum()), 2)
+
+    return {'PagoCOP_00': 0, 'PagoCOP_10': pago_cop_10}
+
+def calcular_cop_62_67_desde_sicop(df_original):
+    if df_original is None or df_original.empty:
+        return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    df = df_original.copy()
+    if 'CONTROL_OPERATIVO' not in df.columns:
+        return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    ur_col = 'Nueva UR' if 'Nueva UR' in df.columns else ('ID_UNIDAD' if 'ID_UNIDAD' in df.columns else None)
+    if ur_col is None:
+        return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    df[ur_col] = df[ur_col].astype(str)
+    df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
+    ejercido_col = None
+    for col_name in ['EJERCIDO_REAL', 'EJERCIDO_ACUMULADO']:
+        if col_name in df.columns:
+            ejercido_col = col_name
             break
-        dia_analizado -= timedelta(days=1)
-    return dia_analizado
-
-
-def detectar_fecha_archivo(filename):
-    """Detecta la fecha del nombre del archivo"""
-    import re
-    month_match = re.search(
-        r'(\d{2})[-_]?(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC)[-_]?(\d{4})?',
-        filename, re.IGNORECASE
-    )
-    if month_match:
-        dia = int(month_match.group(1))
-        mes_nombre = month_match.group(2).upper()
-        año = int(month_match.group(3)) if month_match.group(3) else date.today().year
-        mes = MONTH_MAP[mes_nombre]
-        return date(año, mes, dia), mes, año
-    return date.today(), date.today().month, date.today().year
-
-
-def get_config_by_year(año):
-    """Obtiene la configuración según el año"""
-    if año <= 2025:
-        return {
-            'programas_nombres': PROGRAMAS_NOMBRES_2025,
-            'programas_especificos': PROGRAMAS_ESPECIFICOS_2025,
-            'nombres_especiales': NOMBRES_ESPECIALES_2025,
-            'fusion_programas': FUSION_PROGRAMAS_2025,
-            'denominaciones': DENOMINACIONES_2025,
-            'sector_central': SECTOR_CENTRAL_2025,
-            'oficinas': OFICINAS_2025,
-            'organos_desconcentrados': ORGANOS_DESCONCENTRADOS_2025,
-            'entidades_paraestatales': ENTIDADES_PARAESTATALES_2025,
-            'mapeo_ur': MAPEO_UR_2025,
-            'fusion_urs': {},
-            'usar_2026': False,
-        }
-    else:
-        return {
-            'programas_nombres': PROGRAMAS_NOMBRES_2026,
-            'programas_especificos': PROGRAMAS_ESPECIFICOS_2026,
-            'nombres_especiales': NOMBRES_ESPECIALES_2026,
-            'fusion_programas': FUSION_PROGRAMAS_2026,
-            'denominaciones': DENOMINACIONES_2026,
-            'sector_central': SECTOR_CENTRAL_2026,
-            'oficinas': OFICINAS_2026,
-            'organos_desconcentrados': ORGANOS_DESCONCENTRADOS_2026,
-            'entidades_paraestatales': ENTIDADES_PARAESTATALES_2026,
-            'mapeo_ur': MAPEO_UR_2026_BASE,
-            'fusion_urs': FUSION_URS_2026,
-            'usar_2026': True,
-        }
-
-# ============================================================================
-# CATÁLOGO DE PARTIDAS ESPECÍFICAS
-# ============================================================================
-
-PARTIDAS_ESPECIFICAS = {
-    11101: 'Dietas (Ramos Autónomos)',
-    11201: 'Haberes',
-    11301: 'Sueldos base',
-    11401: 'Retribuciones por adscripción en el extranjero',
-    12101: 'Honorarios',
-    12201: 'Remuneraciones al personal eventual',
-    12202: 'Compensaciones a sustitutos de profesores',
-    12301: 'Retribuciones por servicios en período de formación profesional',
-    12401: 'Retribución a los representantes de los trabajadores y de los patrones en la Junta Federal de Conciliación y Arbitraje',
-    13101: 'Prima quinquenal por años de servicios efectivos prestados',
-    13102: 'Acreditación por años de servicio en la docencia y al personal administrativo de las instituciones de educación superior',
-    13103: 'Prima de perseverancia por años de servicio activo en el Ejército, Fuerza Aérea y Armada Mexicanos',
-    13104: 'Antigüedad',
-    13201: 'Primas de vacaciones y dominical',
-    13202: 'Aguinaldo o gratificación de fin de año',
-    13204: 'Primas de vacaciones y dominical de áreas administrativas (Ramos Autónomos)',
-    13301: 'Remuneraciones por horas extraordinarias',
-    13401: 'Acreditación por titulación en la docencia',
-    13402: 'Acreditación al personal docente por años de estudio de licenciatura',
-    13403: 'Compensaciones por servicios especiales',
-    13404: 'Compensaciones por servicios eventuales',
-    13405: 'Compensaciones de retiro',
-    13406: 'Compensaciones de servicios',
-    13407: 'Compensaciones adicionales por servicios especiales',
-    13408: 'Asignaciones docentes, pedagógicas genéricas y específicas',
-    13409: 'Compensación por adquisición de material didáctico',
-    13410: 'Compensación por actualización y formación académica',
-    13411: 'Compensaciones a médicos residentes',
-    13412: 'Gastos contingentes para el personal radicado en el extranjero',
-    13413: 'Asignaciones para la conclusión de servicios en la Administración Pública Federal',
-    13414: 'Asignaciones conforme al régimen laboral',
-    13501: 'Sobrehaberes',
-    13601: 'Asignaciones de técnico',
-    13602: 'Asignaciones de mando',
-    13603: 'Asignaciones por comisión',
-    13604: 'Asignaciones de vuelo',
-    13605: 'Asignaciones de técnico especial',
-    13701: 'Honorarios especiales',
-    13801: 'Participaciones por vigilancia en el cumplimiento de las leyes y custodia de valores',
-    14101: 'Aportaciones al ISSSTE',
-    14102: 'Aportaciones al ISSFAM',
-    14103: 'Aportaciones al IMSS',
-    14104: 'Aportaciones de seguridad social contractuales',
-    14105: 'Aportaciones al seguro de cesantía en edad avanzada y vejez',
-    14201: 'Aportaciones al FOVISSSTE',
-    14202: 'Aportaciones al INFONAVIT',
-    14301: 'Aportaciones al Sistema de Ahorro para el Retiro',
-    14302: 'Depósitos para el ahorro solidario',
-    14401: 'Cuotas para el seguro de vida del personal civil',
-    14402: 'Cuotas para el seguro de vida del personal militar',
-    14403: 'Cuotas para el seguro de gastos médicos del personal civil',
-    14404: 'Cuotas para el seguro de separación individualizado',
-    14405: 'Cuotas para el seguro colectivo de retiro',
-    14406: 'Seguro de responsabilidad civil, asistencia legal y otros seguros',
-    15101: 'Cuotas para el fondo de ahorro del personal civil',
-    15102: 'Cuotas para el fondo de ahorro de generales, almirantes, jefes y oficiales',
-    15103: 'Cuotas para el fondo de trabajo del personal del Ejército, Fuerza Aérea y Armada Mexicanos',
-    15201: 'Indemnizaciones por accidentes en el trabajo',
-    15202: 'Pago de liquidaciones',
-    15203: 'Fondo para indemnizaciones (Ramos Autónomos)',
-    15301: 'Prestaciones de retiro',
-    15302: 'Prestaciones y previsiones de retiro (Ramos Autónomos)',
-    15401: 'Prestaciones establecidas por condiciones generales de trabajo o contratos colectivos de trabajo',
-    15402: 'Compensación garantizada',
-    15403: 'Asignaciones adicionales al sueldo',
-    15405: 'Compensación de Apoyo (Ramos Autónomos)',
-    15501: 'Apoyos a la capacitación de los servidores públicos',
-    15901: 'Otras prestaciones',
-    15902: 'Pago extraordinario por riesgo',
-    16101: 'Incrementos a las percepciones',
-    16102: 'Creación de plazas',
-    16103: 'Otras medidas de carácter laboral y económico',
-    16104: 'Previsiones para aportaciones al ISSSTE',
-    16105: 'Previsiones para aportaciones al FOVISSSTE',
-    16106: 'Previsiones para aportaciones al Sistema de Ahorro para el Retiro',
-    16107: 'Previsiones para aportaciones al seguro de cesantía en edad avanzada y vejez',
-    16108: 'Previsiones para los depósitos al ahorro solidario',
-    16109: 'Previsiones por adecuaciones a las estructuras ocupacionales',
-    17101: 'Estímulos por productividad y eficiencia',
-    17102: 'Estímulos al personal operativo',
-    21101: 'Materiales y útiles de oficina',
-    21102: 'Material electoral (Ramos Autónomos)',
-    21199: 'Materiales de administración, emisión de documentos y artículos oficiales',
-    21201: 'Materiales y útiles de impresión y reproducción',
-    21301: 'Material estadístico y geográfico',
-    21401: 'Materiales y útiles consumibles para el procesamiento en equipos y bienes informáticos',
-    21501: 'Material de apoyo informativo',
-    21502: 'Material para información en actividades de investigación científica y tecnológica',
-    21601: 'Material de limpieza',
-    21701: 'Materiales y suministros para planteles educativos',
-    21801: 'Materiales para el registro e identificación de bienes y personas',
-    22101: 'Productos alimenticios para el Ejército, Fuerza Aérea y Armada Mexicanos',
-    22102: 'Productos alimenticios para personas derivado de la prestación de servicios públicos',
-    22103: 'Productos alimenticios para el personal que realiza labores en campo',
-    22104: 'Productos alimenticios para el personal en las instalaciones',
-    22105: 'Productos alimenticios para la población en caso de desastres naturales',
-    22106: 'Productos alimenticios para el personal derivado de actividades extraordinarias',
-    22199: 'Alimentos y utensilios',
-    22201: 'Productos alimenticios para animales',
-    22301: 'Utensilios para el servicio de alimentación',
-    23101: 'Productos alimenticios, agropecuarios y forestales adquiridos como materia prima',
-    23199: 'Materias primas y materiales de producción y comercialización',
-    23201: 'Insumos textiles adquiridos como materia prima',
-    23301: 'Productos de papel, cartón e impresos adquiridos como materia prima',
-    23401: 'Combustibles, lubricantes, aditivos, carbón y sus derivados adquiridos como materia prima',
-    23501: 'Productos químicos, farmacéuticos y de laboratorio adquiridos como materia prima',
-    23601: 'Productos metálicos y a base de minerales no metálicos adquiridos como materia prima',
-    23701: 'Productos de cuero, piel, plástico y hule adquiridos como materia prima',
-    23801: 'Mercancías para su comercialización en tiendas del sector público',
-    23901: 'Otros productos adquiridos como materia prima',
-    23902: 'Petróleo, gas y sus derivados adquiridos como materia prima',
-    24101: 'Productos minerales no metálicos',
-    24199: 'Materiales y artículos de construcción y de reparación',
-    24201: 'Cemento y productos de concreto',
-    24301: 'Cal, yeso y productos de yeso',
-    24401: 'Madera y productos de madera',
-    24501: 'Vidrio y productos de vidrio',
-    24601: 'Material eléctrico y electrónico',
-    24701: 'Artículos metálicos para la construcción',
-    24801: 'Materiales complementarios',
-    24901: 'Otros materiales y artículos de construcción y reparación',
-    25101: 'Productos químicos básicos',
-    25199: 'Productos químicos, farmacéuticos y de laboratorio',
-    25201: 'Plaguicidas, abonos y fertilizantes',
-    25301: 'Medicinas y productos farmacéuticos',
-    25401: 'Materiales, accesorios y suministros médicos',
-    25501: 'Materiales, accesorios y suministros de laboratorio',
-    25601: 'Fibras sintéticas, hules, plásticos y derivados',
-    25901: 'Otros productos químicos',
-    26101: 'Combustibles para programas de seguridad pública y nacional',
-    26102: 'Combustibles para servicios públicos y operación de programas',
-    26103: 'Combustibles para servicios administrativos',
-    26104: 'Combustibles asignados a servidores públicos',
-    26105: 'Combustibles para maquinaria y equipo de producción',
-    26106: 'PIDIREGAS cargos variables',
-    26107: 'Combustibles nacionales para plantas productivas',
-    26108: 'Combustibles de importación para plantas productivas',
-    26199: 'Combustibles, lubricantes y aditivos',
-    27101: 'Vestuario y uniformes',
-    27199: 'Vestuario, blancos, prendas de protección y artículos deportivos',
-    27201: 'Prendas de protección personal',
-    27301: 'Artículos deportivos',
-    27401: 'Productos textiles',
-    27501: 'Blancos y otros productos textiles, excepto prendas de vestir',
-    28101: 'Sustancias y materiales explosivos',
-    28199: 'Materiales y suministros para seguridad',
-    28201: 'Materiales de seguridad pública',
-    28301: 'Prendas de protección para seguridad pública y nacional',
-    29101: 'Herramientas menores',
-    29199: 'Herramientas, refacciones y accesorios menores',
-    29201: 'Refacciones y accesorios menores de edificios',
-    29301: 'Refacciones y accesorios menores de mobiliario y equipo',
-    29401: 'Refacciones y accesorios para equipo de cómputo y telecomunicaciones',
-    29501: 'Refacciones y accesorios menores de equipo e instrumental médico',
-    29601: 'Refacciones y accesorios menores de equipo de transporte',
-    29701: 'Refacciones y accesorios menores de equipo de defensa y seguridad',
-    29801: 'Refacciones y accesorios menores de maquinaria y otros equipos',
-    29901: 'Refacciones y accesorios menores otros bienes muebles',
-    31101: 'Servicio de energía eléctrica',
-    31199: 'Servicios básicos',
-    31201: 'Servicio de gas',
-    31301: 'Servicio de agua',
-    31401: 'Servicio telefónico convencional',
-    31501: 'Servicio de telefonía celular',
-    31601: 'Servicio de radiolocalización',
-    31602: 'Servicios de telecomunicaciones',
-    31603: 'Servicios de Internet',
-    31701: 'Servicios de conducción de señales analógicas y digitales',
-    31801: 'Servicio postal',
-    31802: 'Servicio telegráfico',
-    31901: 'Servicios integrales de telecomunicación',
-    31902: 'Contratación de otros servicios',
-    31903: 'Servicios generales para planteles educativos',
-    31904: 'Servicios integrales de infraestructura de cómputo',
-    32101: 'Arrendamiento de terrenos',
-    32199: 'Servicios de arrendamiento',
-    32201: 'Arrendamiento de edificios y locales',
-    32301: 'Arrendamiento de equipo y bienes informáticos',
-    32302: 'Arrendamiento de mobiliario',
-    32303: 'Arrendamiento de equipo de telecomunicaciones',
-    32401: 'Arrendamiento de equipo e instrumental médico y de laboratorio',
-    32501: 'Arrendamiento de vehículos para seguridad pública',
-    32502: 'Arrendamiento de vehículos para servicios públicos',
-    32503: 'Arrendamiento de vehículos para servicios administrativos',
-    32504: 'Arrendamiento de vehículos para desastres naturales',
-    32505: 'Arrendamiento de vehículos para servidores públicos',
-    32601: 'Arrendamiento de maquinaria y equipo',
-    32701: 'Patentes, derechos de autor, regalías y otros',
-    32901: 'Arrendamiento de sustancias y productos químicos',
-    32902: 'PIDIREGAS cargos fijos',
-    32903: 'Otros arrendamientos',
-    33101: 'Asesorías asociadas a convenios, tratados o acuerdos',
-    33102: 'Asesorías por controversias en el marco de los tratados internacionales',
-    33103: 'Consultorías para programas o proyectos financiados por organismos internacionales',
-    33104: 'Otras asesorías para la operación de programas',
-    33105: 'Servicios relacionados con procedimientos jurisdiccionales',
-    33106: 'Servicios legales, de contabilidad, auditoría y relacionados',
-    33199: 'Servicios profesionales, científicos, técnicos y otros servicios',
-    33201: 'Servicios de diseño, arquitectura, ingeniería y actividades relacionadas',
-    33301: 'Servicios de desarrollo de aplicaciones informáticas',
-    33302: 'Servicios estadísticos y geográficos',
-    33303: 'Servicios relacionados con certificación de procesos',
-    33304: 'Servicios de mantenimiento de aplicaciones informáticas',
-    33401: 'Servicios para capacitación a servidores públicos',
-    33501: 'Estudios e investigaciones',
-    33601: 'Servicios relacionados con traducciones',
-    33602: 'Otros servicios comerciales',
-    33603: 'Impresiones de documentos oficiales',
-    33604: 'Impresión y elaboración de material informativo',
-    33605: 'Información en medios masivos',
-    33606: 'Servicios de digitalización',
-    33701: 'Gastos de seguridad pública y nacional',
-    33702: 'Gastos en actividades de seguridad y logística del Estado Mayor Presidencial',
-    33801: 'Servicios de vigilancia',
-    33901: 'Subcontratación de servicios con terceros',
-    33902: 'Proyectos para prestación de servicios',
-    33903: 'Servicios integrales',
-    33904: 'Asignaciones derivadas de proyectos de asociación público privada',
-    33905: 'Servicios integrales en materia de seguridad pública y nacional',
-    33906: 'Asignaciones para cubrir el pago de obligaciones derivadas de títulos de concesión',
-    34101: 'Servicios bancarios y financieros',
-    34199: 'Servicios financieros, bancarios y comerciales',
-    34301: 'Gastos inherentes a la recaudación',
-    34401: 'Seguro de responsabilidad patrimonial del Estado',
-    34501: 'Seguros de bienes patrimoniales',
-    34601: 'Almacenaje, embalaje y envase',
-    34701: 'Fletes y maniobras',
-    34801: 'Comisiones por ventas',
-    34901: 'Otros servicios financieros, bancarios y comerciales',
-    35101: 'Mantenimiento y conservación de inmuebles para servicios administrativos',
-    35102: 'Mantenimiento y conservación de inmuebles para servicios públicos',
-    35199: 'Servicios de instalación, reparación, mantenimiento y conservación',
-    35201: 'Mantenimiento y conservación de mobiliario y equipo de administración',
-    35301: 'Mantenimiento y conservación de bienes informáticos',
-    35401: 'Instalación, reparación y mantenimiento de equipo e instrumental médico',
-    35501: 'Mantenimiento y conservación de vehículos',
-    35601: 'Reparación y mantenimiento de equipo de defensa y seguridad',
-    35701: 'Mantenimiento y conservación de maquinaria y equipo',
-    35702: 'Mantenimiento y conservación de plantas e instalaciones productivas',
-    35801: 'Servicios de lavandería, limpieza e higiene',
-    35901: 'Servicios de jardinería y fumigación',
-    36101: 'Difusión de mensajes sobre programas y actividades gubernamentales',
-    36199: 'Servicios de comunicación social y publicidad',
-    36201: 'Difusión de mensajes comerciales para promover la venta de productos',
-    36301: 'Servicios de creatividad, preproducción y producción de publicidad',
-    36401: 'Servicios de revelado de fotografías',
-    36601: 'Servicio de creación y difusión de contenido a través de Internet',
-    36901: 'Servicios relacionados con monitoreo de información en medios masivos',
-    37101: 'Pasajes aéreos nacionales para labores en campo y de supervisión',
-    37102: 'Pasajes aéreos nacionales asociados a los programas de seguridad pública',
-    37103: 'Pasajes aéreos nacionales asociados a desastres naturales',
-    37104: 'Pasajes aéreos nacionales para servidores públicos de mando',
-    37105: 'Pasajes aéreos internacionales asociados a seguridad pública',
-    37106: 'Pasajes aéreos internacionales para servidores públicos',
-    37199: 'Servicios de traslado y viáticos',
-    37201: 'Pasajes terrestres nacionales para labores en campo',
-    37202: 'Pasajes terrestres nacionales asociados a seguridad pública',
-    37203: 'Pasajes terrestres nacionales asociados a desastres naturales',
-    37204: 'Pasajes terrestres nacionales para servidores públicos de mando',
-    37205: 'Pasajes terrestres internacionales asociados a seguridad pública',
-    37206: 'Pasajes terrestres internacionales para servidores públicos',
-    37207: 'Pasajes terrestres nacionales por medio electrónico',
-    37301: 'Pasajes marítimos para labores en campo y de supervisión',
-    37302: 'Pasajes marítimos asociados a seguridad pública',
-    37303: 'Pasajes marítimos asociados a desastres naturales',
-    37304: 'Pasajes marítimos para servidores públicos de mando',
-    37501: 'Viáticos nacionales para labores en campo y de supervisión',
-    37502: 'Viáticos nacionales asociados a seguridad pública',
-    37503: 'Viáticos nacionales asociados a desastres naturales',
-    37504: 'Viáticos nacionales para servidores públicos',
-    37601: 'Viáticos en el extranjero asociados a seguridad pública',
-    37602: 'Viáticos en el extranjero para servidores públicos',
-    37701: 'Instalación del personal federal',
-    37801: 'Servicios integrales nacionales para servidores públicos',
-    37802: 'Servicios integrales en el extranjero para servidores públicos',
-    37901: 'Gastos para operativos y trabajos de campo en áreas rurales',
-    38101: 'Gastos de ceremonial del titular del Ejecutivo Federal',
-    38102: 'Gastos de ceremonial de los titulares de las dependencias',
-    38103: 'Gastos inherentes a la investidura presidencial',
-    38199: 'Servicios oficiales',
-    38201: 'Gastos de orden social',
-    38301: 'Congresos y convenciones',
-    38401: 'Exposiciones',
-    38501: 'Gastos para alimentación de servidores públicos de mando',
-    39101: 'Funerales y pagas de defunción',
-    39199: 'Otros servicios generales',
-    39201: 'Impuestos y derechos de exportación',
-    39202: 'Otros impuestos y derechos',
-    39301: 'Impuestos y derechos de importación',
-    39401: 'Erogaciones por resoluciones por autoridad competente',
-    39402: 'Indemnizaciones por expropiación de predios',
-    39403: 'Otras asignaciones derivadas de resoluciones de ley',
-    39501: 'Penas, multas, accesorios y actualizaciones',
-    39601: 'Pérdidas del erario federal',
-    39602: 'Otros gastos por responsabilidades',
-    39701: 'Erogaciones por pago de utilidades',
-    39801: 'Impuesto sobre nóminas',
-    39810: 'Otros impuestos sobre nóminas',
-    39901: 'Gastos de las Comisiones Internacionales de Límites y Aguas',
-    39902: 'Gastos de las oficinas del Servicio Exterior Mexicano',
-    39903: 'Asignaciones a los grupos parlamentarios',
-    39904: 'Participaciones en órganos de gobierno',
-    39905: 'Actividades de coordinación con el Presidente Electo',
-    39906: 'Servicios Corporativos prestados por las Entidades Paraestatales',
-    39907: 'Servicios prestados entre Organismos de una Entidad Paraestatal',
-    39908: 'Erogaciones por cuenta de terceros',
-    39909: 'Erogaciones recuperables',
-    39910: 'Apertura de Fondo Rotatorio',
-    41501: 'Transferencias para cubrir el déficit de operación',
-    41601: 'Transferencias a entidades empresariales no financieras',
-    43101: 'Subsidios a la producción',
-    43201: 'Subsidios a la distribución',
-    43301: 'Subsidios para inversión',
-    43401: 'Subsidios a la prestación de servicios públicos',
-    43501: 'Subsidios para cubrir diferenciales de tasas de interés',
-    43601: 'Subsidios para la adquisición de vivienda de interés social',
-    43701: 'Subsidios al consumo',
-    43801: 'Subsidios a Entidades Federativas y Municipios',
-    43901: 'Subsidios para capacitación y becas',
-    43902: 'Subsidios a fideicomisos privados y estatales',
-    44101: 'Gastos relacionados con actividades culturales, deportivas y de ayuda extraordinaria',
-    44102: 'Gastos por servicios de traslado de personas',
-    44103: 'Premios, recompensas, pensiones de gracia y pensión recreativa estudiantil',
-    44104: 'Premios, estímulos, recompensas, becas y seguros a deportistas',
-    44105: 'Apoyo a voluntarios que participan en diversos programas federales',
-    44106: 'Compensaciones por servicios de carácter social',
-    44199: 'Ayudas sociales',
-    44201: 'Otras ayudas para programas de capacitación',
-    44401: 'Apoyos a la investigación científica y tecnológica',
-    44402: 'Apoyos a la investigación científica en instituciones sin fines de lucro',
-    44801: 'Mercancías para su distribución a la población',
-    45201: 'Pago de pensiones y jubilaciones',
-    45202: 'Pago de pensiones y jubilaciones contractuales',
-    45203: 'Transferencias para el pago de pensiones y jubilaciones',
-    45901: 'Pago de sumas aseguradas',
-    45902: 'Prestaciones económicas distintas de pensiones y jubilaciones',
-    46101: 'Aportaciones a fideicomisos públicos',
-    46102: 'Aportaciones a mandatos públicos',
-    46199: 'Transferencias a fideicomisos, mandatos y otros análogos',
-    47101: 'Trasferencias para cuotas y aportaciones de seguridad social',
-    47102: 'Transferencias para cuotas y aportaciones a los seguros de retiro',
-    48101: 'Donativos a instituciones sin fines de lucro',
-    48199: 'Donativos',
-    48201: 'Donativos a entidades federativas o municipios',
-    48301: 'Donativos a fideicomisos privados',
-    48401: 'Donativos a fideicomisos estatales',
-    48501: 'Donativos internacionales',
-    49199: 'Transferencias al exterior',
-    49201: 'Cuotas y aportaciones a organismos internacionales',
-    49202: 'Otras aportaciones internacionales',
-    51101: 'Mobiliario',
-    51199: 'Mobiliario y equipo de administración',
-    51201: 'Muebles, excepto de oficina y estantería',
-    51301: 'Bienes artísticos y culturales',
-    51501: 'Bienes informáticos',
-    51901: 'Equipo de administración',
-    51902: 'Adjudicaciones, expropiaciones e indemnizaciones de bienes muebles',
-    52101: 'Equipos y aparatos audiovisuales',
-    52199: 'Mobiliario y equipo educacional y recreativo',
-    52201: 'Aparatos deportivos',
-    52301: 'Cámaras fotográficas y de video',
-    52901: 'Otro mobiliario y equipo educacional y recreativo',
-    53101: 'Equipo médico y de laboratorio',
-    53199: 'Equipo e instrumental médico y de laboratorio',
-    53201: 'Instrumental médico y de laboratorio',
-    54101: 'Vehículos y equipo terrestres para seguridad pública',
-    54102: 'Vehículos y equipo terrestres para desastres naturales',
-    54103: 'Vehículos y equipo terrestres para servicios públicos',
-    54104: 'Vehículos y equipo terrestres para servicios administrativos',
-    54105: 'Vehículos y equipo terrestres para servidores públicos',
-    54199: 'Vehículos y equipo de transporte',
-    54201: 'Carrocerías y remolques',
-    54301: 'Vehículos y equipo aéreos para seguridad pública',
-    54302: 'Vehículos y equipo aéreos para desastres naturales',
-    54303: 'Vehículos y equipo aéreos para servicios públicos',
-    54401: 'Equipo ferroviario',
-    54501: 'Vehículos y equipo marítimo para seguridad pública',
-    54502: 'Vehículos y equipo marítimo para servicios públicos',
-    54503: 'Construcción de embarcaciones',
-    54901: 'Otros equipos de transporte',
-    55101: 'Maquinaria y equipo de defensa y seguridad pública',
-    55102: 'Equipo de seguridad pública y nacional',
-    55199: 'Equipo de defensa y seguridad',
-    56101: 'Maquinaria y equipo agropecuario',
-    56199: 'Maquinaria, otros equipos y herramientas',
-    56201: 'Maquinaria y equipo industrial',
-    56301: 'Maquinaria y equipo de construcción',
-    56401: 'Sistemas de aire acondicionado, calefacción y de refrigeración',
-    56501: 'Equipos y aparatos de comunicaciones y telecomunicaciones',
-    56601: 'Maquinaria y equipo eléctrico y electrónico',
-    56701: 'Herramientas y máquinas herramienta',
-    56901: 'Bienes muebles por arrendamiento financiero',
-    56902: 'Otros bienes muebles',
-    57101: 'Animales de reproducción',
-    57199: 'Activos biológicos',
-    57201: 'Porcinos',
-    57301: 'Aves',
-    57401: 'Ovinos y caprinos',
-    57501: 'Peces y acuicultura',
-    57601: 'Animales de trabajo',
-    57701: 'Animales de custodia y vigilancia',
-    57801: 'Árboles y plantas',
-    57901: 'Otros activos biológicos',
-    58101: 'Terrenos',
-    58199: 'Bienes inmuebles',
-    58301: 'Edificios y locales',
-    58901: 'Adjudicaciones, expropiaciones e indemnizaciones de inmuebles',
-    58902: 'Bienes inmuebles en la modalidad de proyectos de infraestructura',
-    58903: 'Bienes inmuebles por arrendamiento financiero',
-    58904: 'Otros bienes inmuebles',
-    59101: 'Software',
-    59199: 'Activos intangibles',
-    59401: 'Derechos',
-    59701: 'Licencias informáticas e intelectuales',
-    59901: 'Otros activos intangibles',
-}
-
-def obtener_denominacion_partida(partida):
-    """Obtiene la denominación de una partida específica"""
-    return PARTIDAS_ESPECIFICAS.get(int(partida), f'Partida {partida}')
-
-
-# ============================================================================
-# PARTIDAS SUJETAS A AUSTERIDAD REPUBLICANA
-# ============================================================================
-
-PARTIDAS_AUSTERIDAD = [
-    21101, 21401, 21501, 22102, 22103, 22104, 22106, 22301,
-    26102, 26103, 26104, 26105, 27301, 27401, 27501,
-    31101, 31301, 31401, 31501, 31601, 31602, 31603, 31701, 31901, 31904,
-    32101, 32201, 32301, 32302, 32303, 32401, 32502, 32503, 32505, 32601, 32701, 32903,
-    33104, 33105, 33201, 33301, 33302, 33303, 33304, 33401, 33501, 33602, 33606, 33801, 33901, 33903,
-    35101, 35102, 35201, 35801, 35901,
-    36101, 36901,
-    37101, 37104, 37106, 37201, 37204, 37206, 37301, 37501, 37504, 37602, 37901,
-    38301, 38401, 38501
-]
-
-DENOMINACIONES_AUSTERIDAD = {
-    21101: 'Materiales y útiles de oficina',
-    21401: 'Materiales y útiles consumibles para el procesamiento en equipos y bienes informáticos',
-    21501: 'Material de apoyo informativo',
-    22102: 'Productos alimenticios para personas derivado de la prestación de servicios públicos en unidades de salud, educativas, de readaptación social y otras',
-    22103: 'Productos alimenticios para el personal que realiza labores en campo o de supervisión',
-    22104: 'Productos alimenticios para el personal en las instalaciones de las dependencias y entidades',
-    22106: 'Productos alimenticios para el personal derivado de actividades extraordinarias',
-    22301: 'Utensilios para el servicio de alimentación',
-    26102: 'Combustibles, lubricantes y aditivos para vehículos terrestres, aéreos, marítimos, lacustres y fluviales destinados a servicios públicos y la operación de programas públicos',
-    26103: 'Combustibles, lubricantes y aditivos para vehículos terrestres, aéreos, marítimos, lacustres y fluviales destinados a servicios administrativos',
-    26104: 'Combustibles, lubricantes y aditivos para vehículos terrestres, aéreos, marítimos, lacustres y fluviales asignados a servidores públicos',
-    26105: 'Combustibles, lubricantes y aditivos para maquinaria, equipo de producción y servicios administrativos',
-    27301: 'Artículos deportivos',
-    27401: 'Productos textiles',
-    27501: 'Blancos y otros productos textiles, excepto prendas de vestir',
-    31101: 'Servicio de energía eléctrica',
-    31301: 'Servicio de agua',
-    31401: 'Servicio telefónico convencional',
-    31501: 'Servicio de telefonía celular',
-    31601: 'Servicio de radiolocalización',
-    31602: 'Servicios de telecomunicaciones',
-    31603: 'Servicios de Internet',
-    31701: 'Servicios de conducción de señales analógicas y digitales',
-    31901: 'Servicios integrales de telecomunicación',
-    31904: 'Servicios integrales de infraestructura de cómputo',
-    32101: 'Arrendamiento de terrenos',
-    32201: 'Arrendamiento de edificios y locales',
-    32301: 'Arrendamiento de equipo y bienes informáticos',
-    32302: 'Arrendamiento de mobiliario',
-    32303: 'Arrendamiento de equipo de telecomunicaciones',
-    32401: 'Arrendamiento de equipo e instrumental médico y de laboratorio',
-    32502: 'Arrendamiento de vehículos terrestres, aéreos, marítimos, lacustres y fluviales para la ejecución de programas de seguridad pública y nacional',
-    32503: 'Arrendamiento de vehículos terrestres, aéreos, marítimos, lacustres y fluviales para servicios públicos y la operación de programas públicos',
-    32505: 'Arrendamiento de vehículos terrestres, aéreos, marítimos, lacustres y fluviales para servicios administrativos',
-    32601: 'Arrendamiento de maquinaria y equipo',
-    32701: 'Patentes, derechos de autor, regalías y otros',
-    32903: 'Otros arrendamientos',
-    33104: 'Otras asesorías para la operación de programas',
-    33105: 'Servicios relacionados con procedimientos jurisdiccionales',
-    33201: 'Servicios de diseño, arquitectura, ingeniería y actividades relacionadas',
-    33301: 'Servicios de desarrollo de aplicaciones informáticas',
-    33302: 'Servicios estadísticos y geográficos',
-    33303: 'Servicios relacionados con certificación de procesos',
-    33304: 'Servicios de mantenimiento de aplicaciones informáticas',
-    33401: 'Servicios para capacitación a servidores públicos',
-    33501: 'Estudios e investigaciones',
-    33602: 'Otros servicios comerciales',
-    33606: 'Servicios de digitalización',
-    33801: 'Servicios de vigilancia',
-    33901: 'Subcontratación de servicios con terceros',
-    33903: 'Servicios integrales',
-    35101: 'Mantenimiento y conservación de inmuebles para la prestación de servicios administrativos',
-    35102: 'Mantenimiento y conservación de inmuebles para la prestación de servicios públicos',
-    35201: 'Mantenimiento y conservación de mobiliario y equipo de administración',
-    35801: 'Servicios de lavandería, limpieza e higiene',
-    35901: 'Servicios de jardinería y fumigación',
-    36101: 'Difusión de mensajes sobre programas y actividades gubernamentales',
-    36901: 'Servicios relacionados con monitoreo de información en medios masivos',
-    37101: 'Pasajes aéreos nacionales para labores en campo y de supervisión',
-    37104: 'Pasajes aéreos nacionales para servidores públicos de mando en el desempeño de comisiones y funciones oficiales',
-    37106: 'Pasajes aéreos internacionales para servidores públicos en el desempeño de comisiones y funciones oficiales',
-    37201: 'Pasajes terrestres nacionales para labores en campo y de supervisión',
-    37204: 'Pasajes terrestres nacionales para servidores públicos de mando en el desempeño de comisiones y funciones oficiales',
-    37206: 'Pasajes terrestres internacionales para servidores públicos en el desempeño de comisiones y funciones oficiales',
-    37301: 'Pasajes marítimos, lacustres y fluviales para labores en campo y de supervisión',
-    37501: 'Viáticos nacionales para labores en campo y de supervisión',
-    37504: 'Viáticos nacionales para servidores públicos en el desempeño de funciones oficiales',
-    37602: 'Viáticos en el extranjero para servidores públicos en el desempeño de comisiones y funciones oficiales',
-    37901: 'Gastos para operativos y trabajos de campo en áreas rurales',
-    38301: 'Congresos y convenciones',
-    38401: 'Exposiciones',
-    38501: 'Gastos para alimentación de servidores públicos de mando',
-}
-
-
-# ============================================================================
-# NOMBRES DE UNIDADES RESPONSABLES
-# ============================================================================
-
-UR_NOMBRES = {
-    '100': 'Secretaría',
-    '110': 'Subsecretaría de Agricultura',
-    '111': 'Dirección General de Fomento a la Agricultura',
-    '112': 'Dirección General de Productividad y Desarrollo Tecnológico',
-    '117': 'Dirección General de Operación y Explotación de Padrones',
-    '200': 'Subsecretaría de Alimentación y Competitividad',
-    '210': 'Dirección General de Logística y Alimentación',
-    '211': 'Dirección General de Normalización Agroalimentaria',
-    '212': 'Dirección General de Vinculación y Desarrollo Tecnológico',
-    '213': 'Coordinación General de Promoción Comercial y Fomento a las Exportaciones',
-    '214': 'Dirección General de Administración de Riesgos',
-    '215': 'Coordinación General de Enlace Sectorial',
-    '220': 'Coordinación General de Desarrollo Rural',
-    '221': 'Coordinación General de Ganadería',
-    '222': 'Dirección General de Pesca y Acuacultura',
-    '223': 'Dirección General de Ordenamiento Pesquero y Acuícola',
-    '224': 'Dirección General de Inspección y Vigilancia',
-    '225': 'Coordinación General de Delegaciones',
-    '226': 'Órgano Interno de Control',
-    '227': 'Coordinación General de Asuntos Internacionales',
-    '230': 'Dirección General de Administración y Finanzas',
-    '231': 'Coordinación General de Agricultura',
-    '232': 'Delegación de Programas para el Desarrollo',
-    '233': 'Dirección General de Eficiencia Financiera y Rendición de Cuentas',
-    '235': 'Dirección General de Programación, Presupuesto y Finanzas',
-    '237': 'Dirección General de Tecnologías de la Información y Comunicaciones',
-    '240': 'Dirección General de Capital Humano',
-    '245': 'Dirección General de Recursos Materiales, Inmuebles y Servicios',
-    '250': 'Oficina del Abogado General',
-    '500': 'Coordinación General de Comunicación Social',
-    '510': 'Unidad de Comunicación Social',
-    '511': 'Oficina de Estrategia y Comunicación',
-    '512': 'Unidad de Transparencia',
-    '513': 'Unidad de Igualdad de Género',
-    # Delegaciones (260-292)
-    '260': 'Delegación en Aguascalientes',
-    '261': 'Delegación en Baja California',
-    '262': 'Delegación en Baja California Sur',
-    '263': 'Delegación en Campeche',
-    '264': 'Delegación en Coahuila',
-    '265': 'Delegación en Colima',
-    '266': 'Delegación en Chiapas',
-    '267': 'Delegación en Chihuahua',
-    '268': 'Delegación en Durango',
-    '269': 'Delegación en Guanajuato',
-    '270': 'Delegación en Guerrero',
-    '271': 'Delegación en Hidalgo',
-    '272': 'Delegación en Jalisco',
-    '273': 'Delegación en Estado de México',
-    '274': 'Delegación en Michoacán',
-    '275': 'Delegación en Morelos',
-    '276': 'Delegación en Nayarit',
-    '277': 'Delegación en Nuevo León',
-    '278': 'Delegación en Oaxaca',
-    '279': 'Delegación en Puebla',
-    '280': 'Delegación en Querétaro',
-    '281': 'Delegación en Quintana Roo',
-    '282': 'Delegación en San Luis Potosí',
-    '283': 'Delegación en Sinaloa',
-    '284': 'Delegación en Sonora',
-    '285': 'Delegación en Tabasco',
-    '286': 'Delegación en Tamaulipas',
-    '287': 'Delegación en Tlaxcala',
-    '288': 'Delegación en Veracruz',
-    '289': 'Delegación en Yucatán',
-    '290': 'Delegación en Zacatecas',
-    '291': 'Delegación en Ciudad de México',
-    '292': 'Centro SCT',
-    # Órganos desconcentrados
-    '810': 'SENASICA',
-    '811': 'SNICS',
-    '900': 'SIAP',
-    '910': 'INCA Rural',
-    '911': 'Radio y Televisión',
-    '912': 'COFUPRO',
-    '920': 'COLPOS',
-    '921': 'Colegio de Postgraduados',
-    '922': 'INIFAP',
-    # Entidades paraestatales (alfanuméricos)
-    'A1I': 'ASERCA',
-    'AFU': 'Financiera Nacional de Desarrollo',
-    'B00': 'CONADESUCA',
-    'C00': 'CONAZA',
-    'D00': 'DICONSA',
-    'I00': 'INAPESCA',
-    'I6L': 'FIRCO',
-    'I9H': 'Fondo de Empresas Expropiadas',
-    'IZC': 'LICONSA',
-    'IZI': 'PRONABIVE',
-    'JAG': 'SEGALMEX',
-    'RJL': 'Fideicomisos Instituidos',
-}
-# ============================================================================
-# CUENTA PÚBLICA 2025 - EJERCIDO CON INFLACIÓN
-# Datos precargados para Dashboard de Austeridad
-# Concatenación: Partida + UR (ej: '21101100' = Partida 21101 + UR 100)
-# ============================================================================
-
-CUENTA_PUBLICA_2025 = {
-    '21101100': 82501.01,
-    '21101110': 34311.84,
-    '21101111': 5631.70,
-    '21101112': 5999.74,
-    '21101117': 27369.87,
-    '21101200': 54680.93,
-    '21101225': 38314.84,
-    '21101230': 10296.79,
-    '21101235': 11925.49,
-    '21101250': 61609.34,
-    '21101260': 28959.33,
-    '21101261': 26956.36,
-    '21101263': 389.34,
-    '21101264': 23947.50,
-    '21101265': 15450.00,
-    '21101266': 4233.23,
-    '21101267': 122884.89,
-    '21101269': 106604.21,
-    '21101270': 161755.30,
-    '21101271': 306038.75,
-    '21101273': 33475.00,
-    '21101274': 9469.80,
-    '21101275': 171119.05,
-    '21101276': 112671.03,
-    '21101277': 1104.16,
-    '21101278': 30999.23,
-    '21101279': 4372.35,
-    '21101280': 88372.26,
-    '21101281': 3605.00,
-    '21101282': 86455.60,
-    '21101283': 150224.47,
-    '21101284': 159392.50,
-    '21101285': 177151.31,
-    '21101286': 159924.01,
-    '21101287': 72045.12,
-    '21101288': 64302.33,
-    '21101289': 48327.45,
-    '21101290': 1220.39,
-    '21101291': 106194.42,
-    '21101292': 31415.00,
-    '21101500': 8158.09,
-    '21101510': 54195.20,
-    '21101511': 49760.78,
-    '21101512': 119763.04,
-    '21101811': 9681.44,
-    '21101A1I': 9867779.04,
-    '21101AFU': 25750.00,
-    '21101B00': 3587751.50,
-    '21101C00': 99440.66,
-    '21101D00': 77188.29,
-    '21101I00': 1238849.57,
-    '21101I6L': 335629.62,
-    '21101I9H': 116055.25,
-    '21101IZC': 1375354.05,
-    '21101IZI': 37074.69,
-    '21101JAG': 3175490.00,
-    '21101RJL': 58305.21,
-    '21401100': 19107.73,
-    '21401110': 17122.50,
-    '21401111': 27027.20,
-    '21401117': 2747.08,
-    '21401200': 10243.88,
-    '21401225': 21669.98,
-    '21401235': 8937.10,
-    '21401250': 19188.26,
-    '21401260': 13977.17,
-    '21401261': 25867.54,
-    '21401263': 35319.64,
-    '21401264': 6478.70,
-    '21401266': 44622.32,
-    '21401267': 198068.46,
-    '21401269': 95734.98,
-    '21401270': 10030.61,
-    '21401271': 256470.00,
-    '21401272': 40646.89,
-    '21401273': 33084.79,
-    '21401274': 106888.25,
-    '21401275': 43856.36,
-    '21401276': 126690.00,
-    '21401277': 49969.15,
-    '21401279': 36281.55,
-    '21401280': 98071.49,
-    '21401282': 24676.09,
-    '21401283': 133900.00,
-    '21401284': 42127.00,
-    '21401285': 206971.25,
-    '21401286': 188974.49,
-    '21401287': 46350.00,
-    '21401289': 32959.99,
-    '21401290': 20232.87,
-    '21401291': 47773.55,
-    '21401292': 32960.00,
-    '21401500': 14345.85,
-    '21401510': 19146.71,
-    '21401511': 17185.41,
-    '21401512': 19415.25,
-    '21401A1I': 13829879.01,
-    '21401AFU': 30900.00,
-    '21401B00': 417547.57,
-    '21401C00': 129751.54,
-    '21401D00': 4601.67,
-    '21401I00': 6296.60,
-    '21401I6L': 11260.99,
-    '21401I9H': 194271.39,
-    '21401IZC': 1698355.53,
-    '21401IZI': 55877.44,
-    '21401JAG': 1071200.00,
-    '21401RJL': 2345.31,
-    '21501100': 407.88,
-    '21501111': 180229.81,
-    '21501263': 3264.07,
-    '21501265': 6582.73,
-    '21501270': 8080.35,
-    '21501275': 4635.00,
-    '21501278': 9373.00,
-    '21501283': 14420.00,
-    '21501291': 1236.00,
-    '21501512': 3294.09,
-    '21501A1I': 17545502.04,
-    '21501IZC': 288341.27,
-    '21501IZI': 1931.25,
-    '21501RJL': 1483.20,
-    '22102A1I': 170351860.68,
-    '22103IZI': 6045.98,
-    '22103JAG': 721000.00,
-    '22103RJL': 101316.98,
-    '22104100': 493839.08,
-    '22104110': 10937.78,
-    '22104111': 4536.35,
-    '22104112': 5999.75,
-    '22104117': 24961.57,
-    '22104200': 27478.65,
-    '22104212': 13624.69,
-    '22104225': 45518.41,
-    '22104230': 23890.85,
-    '22104235': 4326.00,
-    '22104250': 13074.13,
-    '22104260': 27637.83,
-    '22104261': 24185.68,
-    '22104262': 10300.00,
-    '22104263': 37126.08,
-    '22104264': 42586.38,
-    '22104265': 55263.62,
-    '22104266': 138717.02,
-    '22104267': 62390.48,
-    '22104269': 26163.53,
-    '22104270': 48678.95,
-    '22104271': 64117.50,
-    '22104272': 9048.55,
-    '22104273': 108284.03,
-    '22104274': 82400.00,
-    '22104275': 141454.59,
-    '22104276': 77539.66,
-    '22104277': 64258.96,
-    '22104278': 51500.00,
-    '22104279': 41390.55,
-    '22104280': 39577.75,
-    '22104281': 16340.95,
-    '22104282': 35622.55,
-    '22104283': 64375.00,
-    '22104284': 51500.00,
-    '22104285': 123764.80,
-    '22104286': 44418.82,
-    '22104287': 84924.86,
-    '22104288': 1884.75,
-    '22104289': 87571.63,
-    '22104290': 43260.00,
-    '22104291': 106954.88,
-    '22104292': 40685.00,
-    '22104500': 7364.61,
-    '22104510': 4113.98,
-    '22104511': 37801.56,
-    '22104512': 576610.26,
-    '22104811': 12236.40,
-    '22104A1I': 5378343.79,
-    '22104B00': 3535357.61,
-    '22104C00': 109978.99,
-    '22104D00': 34323.51,
-    '22104I00': 746566.86,
-    '22104I6L': 287316.44,
-    '22104I9H': 57765.49,
-    '22104IZC': 1077743.58,
-    '22104IZI': 34565.05,
-    '22104JAG': 2927260.00,
-    '22104RJL': 37001.93,
-    '22106100': 49705.38,
-    '22106111': 1754.08,
-    '22106225': 8957.90,
-    '22106250': 22288.99,
-    '22106272': 25135.14,
-    '22106274': 23844.50,
-    '22106286': 39362.47,
-    '22106512': 42719.87,
-    '22106A1I': 3082471.73,
-    '22106I00': 206000.00,
-    '22106I9H': 20802.91,
-    '22106IZI': 17098.00,
-    '22106JAG': 558363.00,
-    '22106RJL': 33462.64,
-    '22301100': 15909.91,
-    '22301265': 1314.28,
-    '22301266': 1409.86,
-    '22301274': 9905.51,
-    '22301277': 3087.89,
-    '22301288': 12123.10,
-    '22301500': 16461.93,
-    '22301510': 2262.91,
-    '22301A1I': 1052226.37,
-    '22301B00': 57284.35,
-    '22301D00': 545.92,
-    '22301I00': 19189.98,
-    '22301I6L': 1691.26,
-    '22301IZC': 80780.93,
-    '22301JAG': 65920.00,
-    '22301RJL': 12294.08,
-    '26102221': 5103943.27,
-    '26102260': 338136.21,
-    '26102261': 675103.21,
-    '26102262': 311082.66,
-    '26102263': 1234397.75,
-    '26102266': 415476.83,
-    '26102269': 144509.00,
-    '26102271': 619011.37,
-    '26102272': 130686.52,
-    '26102274': 537571.40,
-    '26102275': 943129.35,
-    '26102276': 139294.67,
-    '26102280': 992591.83,
-    '26102282': 413248.98,
-    '26102283': 159392.50,
-    '26102285': 3277969.71,
-    '26102287': 914866.52,
-    '26102289': 103530.09,
-    '26102291': 2378690.70,
-    '26102292': 130445.33,
-    '26102C00': 2292088.38,
-    '26102D00': 446185.88,
-    '26102I00': 12406375.41,
-    '26102IZC': 8930206.42,
-    '26102JAG': 9630500.00,
-    '26102RJL': 5579494.08,
-    '26103111': 10173.83,
-    '26103260': 101825.80,
-    '26103262': 13014.05,
-    '26103264': 937489.83,
-    '26103265': 697305.76,
-    '26103266': 1277349.97,
-    '26103267': 1479949.45,
-    '26103268': 101555.11,
-    '26103269': 1572004.14,
-    '26103270': 1345055.84,
-    '26103272': 1571516.26,
-    '26103273': 1249967.85,
-    '26103276': 53328.66,
-    '26103277': 447662.77,
-    '26103278': 1668163.34,
-    '26103279': 704358.40,
-    '26103280': 819176.98,
-    '26103281': 918576.19,
-    '26103282': 70904.29,
-    '26103283': 1669555.22,
-    '26103284': 2460578.47,
-    '26103286': 658586.12,
-    '26103288': 1076226.82,
-    '26103289': 2136343.37,
-    '26103290': 831879.99,
-    '26103292': 862164.18,
-    '26103512': 1929709.06,
-    '26103811': 15070.80,
-    '26103A1I': 40572121.27,
-    '26103B00': 51946888.50,
-    '26103I00': 1449281.98,
-    '26103I6L': 380269.82,
-    '26103IZI': 189094.39,
-    '26103RJL': 864575.82,
-    '26104100': 3410.29,
-    '26104200': 1259.66,
-    '26104212': 5461.16,
-    '26104220': 4608.34,
-    '26104225': 7353.44,
-    '26104226': 6430.85,
-    '26104232': 898.22,
-    '26104235': 1030.00,
-    '26104245': 823.23,
-    '26104250': 23053.39,
-    '26104271': 1365267.85,
-    '26104274': 1378484.82,
-    '26104276': 780884.85,
-    '26104277': 28447.41,
-    '26104I6L': 21168.56,
-    '26104I9H': 217955.21,
-    '26104IZI': 276040.00,
-    '26105A1I': 12129148.16,
-    '26105B00': 147316.90,
-    '26105D00': 349911.01,
-    '26105I00': 127156.59,
-    '26105JAG': 1339000.00,
-    '27301289': 2059.89,
-    '27301511': 6064.80,
-    '27301A1I': 2331977.68,
-    '27301D00': 9940.74,
-    '27301I00': 3597.79,
-    '27301RJL': 20595.88,
-    '27401280': 6075.56,
-    '27401A1I': 1188180.19,
-    '27401IZC': 4457.84,
-    '27501100': 5197.19,
-    '27501A1I': 686168.49,
-    '27501IZC': 48730.47,
-    '31101260': 318651.67,
-    '31101261': 751900.00,
-    '31101262': 772500.00,
-    '31101263': 719597.81,
-    '31101264': 518187.97,
-    '31101265': 507504.59,
-    '31101266': 2094218.66,
-    '31101267': 1161405.34,
-    '31101268': 165142.99,
-    '31101269': 472770.00,
-    '31101270': 599947.20,
-    '31101271': 628310.91,
-    '31101272': 514860.98,
-    '31101273': 987265.30,
-    '31101274': 481344.75,
-    '31101275': 958220.33,
-    '31101276': 401232.12,
-    '31101277': 786420.45,
-    '31101278': 875526.78,
-    '31101279': 778680.00,
-    '31101280': 505307.70,
-    '31101281': 354438.99,
-    '31101282': 572447.35,
-    '31101283': 721000.00,
-    '31101284': 2658613.34,
-    '31101285': 1724781.60,
-    '31101286': 1140386.13,
-    '31101287': 1424082.12,
-    '31101288': 184367.94,
-    '31101289': 1616369.81,
-    '31101290': 646618.55,
-    '31101291': 643095.15,
-    '31101292': 710906.00,
-    '31101512': 7317060.26,
-    '31101811': 441353.97,
-    '31101A1I': 36653412.11,
-    '31101B00': 57215082.88,
-    '31101C00': 204139.89,
-    '31101D00': 893365.35,
-    '31101I00': 5520063.53,
-    '31101I6L': 1166291.13,
-    '31101IZC': 12173190.84,
-    '31101IZI': 199003.21,
-    '31101JAG': 14198550.00,
-    '31101RJL': 2777681.34,
-    '31301260': 97873.69,
-    '31301261': 499549.91,
-    '31301262': 54333.51,
-    '31301264': 49319.49,
-    '31301265': 131565.43,
-    '31301266': 125785.58,
-    '31301267': 165851.63,
-    '31301268': 49740.76,
-    '31301269': 110374.80,
-    '31301270': 64183.17,
-    '31301271': 67898.31,
-    '31301272': 234771.68,
-    '31301273': 182933.72,
-    '31301274': 63782.75,
-    '31301275': 146109.02,
-    '31301276': 54932.12,
-    '31301277': 38266.74,
-    '31301278': 290773.12,
-    '31301279': 41987.74,
-    '31301280': 60424.90,
-    '31301281': 75882.16,
-    '31301282': 85015.07,
-    '31301283': 82400.00,
-    '31301284': 102431.59,
-    '31301285': 285759.08,
-    '31301286': 235976.88,
-    '31301287': 135754.00,
-    '31301288': 45895.77,
-    '31301289': 1033920.15,
-    '31301290': 26214.17,
-    '31301291': 84277.75,
-    '31301292': 49891.97,
-    '31301512': 2282622.14,
-    '31301811': 43940.83,
-    '31301A1I': 69717.61,
-    '31301B00': 1547796.08,
-    '31301C00': 60590.26,
-    '31301D00': 106133.26,
-    '31301I00': 282678.51,
-    '31301I6L': 260854.71,
-    '31301IZC': 137874.98,
-    '31301IZI': 68336.92,
-    '31301JAG': 980560.00,
-    '31301RJL': 525183.61,
-    '31401260': 103627.75,
-    '31401261': 154500.00,
-    '31401262': 108656.05,
-    '31401263': 35498.36,
-    '31401264': 130810.00,
-    '31401265': 96670.39,
-    '31401266': 508909.35,
-    '31401267': 378036.30,
-    '31401268': 40182.89,
-    '31401269': 107677.25,
-    '31401270': 141656.82,
-    '31401271': 206212.71,
-    '31401272': 274077.07,
-    '31401273': 411674.71,
-    '31401274': 265331.88,
-    '31401275': 483750.40,
-    '31401276': 41232.64,
-    '31401277': 183004.13,
-    '31401278': 180865.48,
-    '31401279': 195073.89,
-    '31401280': 203071.44,
-    '31401281': 119032.17,
-    '31401282': 117473.90,
-    '31401283': 185400.00,
-    '31401284': 338049.76,
-    '31401285': 478914.45,
-    '31401286': 160976.04,
-    '31401287': 389340.00,
-    '31401288': 91461.20,
-    '31401289': 389935.44,
-    '31401290': 62926.37,
-    '31401291': 160836.61,
-    '31401292': 107841.00,
-    '31401513': 430697.85,
-    '31401811': 32440.16,
-    '31401A1I': 1231558.64,
-    '31401B00': 1912637.19,
-    '31401C00': 94294.23,
-    '31401D00': 140383.77,
-    '31401I00': 973578.74,
-    '31401I6L': 335456.58,
-    '31401I9H': 382039.36,
-    '31401IZC': 1532274.68,
-    '31401IZI': 88131.46,
-    '31401RJL': 177327.50,
-    '31501A1I': 286263.78,
-    '31601A1I': 34183.64,
-    '31602A1I': 48532.57,
-    '31603260': 12030.39,
-    '31603278': 5752.55,
-    '31603289': 34607.99,
-    '31603811': 69477.16,
-    '31603A1I': 19318746.95,
-    '31603C00': 10609.82,
-    '31603D00': 180065.29,
-    '31603IZI': 323705.97,
-    '31603JAG': 36977309.00,
-    '31701100': 12545.17,
-    '31701111': 6118.09,
-    '31701112': 2605.90,
-    '31701261': 6180.00,
-    '31701263': 10815.00,
-    '31701264': 3531.87,
-    '31701274': 10610.03,
-    '31701275': 192539.69,
-    '31701279': 28675.20,
-    '31701282': 18540.00,
-    '31701290': 73136.79,
-    '31701513': 82230498.02,
-    '31701811': 223009.42,
-    '31701A1I': 182582.95,
-    '31701B00': 20374391.87,
-    '31701I00': 71361581.53,
-    '31701I6L': 342028.30,
-    '31701I9H': 266827.68,
-    '31701IZC': 813142.27,
-    '31701JAG': 422300.00,
-    '31701RJL': 700379.24,
-    '31901A1I': 166554.09,
-    '31904273': 29870.00,
-    '31904513': 19648298.51,
-    '31904B00': 7108112.44,
-    '31904JAG': 6859789.70,
-    '32101A1I': 198836.35,
-    '32201264': 5310.68,
-    '32201266': 100760.21,
-    '32201270': 4738.00,
-    '32201271': 143372.48,
-    '32201279': 525841.55,
-    '32201283': 754029.50,
-    '32201285': 233457.39,
-    '32201289': 427491.59,
-    '32201291': 257999.05,
-    '32201512': 35988945.72,
-    '32201A1I': 382421.49,
-    '32201D00': 284790.45,
-    '32201I00': 1386529.00,
-    '32201I6L': 3163022.88,
-    '32201IZC': 30670.31,
-    '32201IZI': 50181.60,
-    '32201JAG': 526330.00,
-    '32301260': 80609.70,
-    '32301261': 87999.45,
-    '32301262': 77132.27,
-    '32301263': 169793.93,
-    '32301264': 160751.25,
-    '32301265': 139701.92,
-    '32301266': 252963.53,
-    '32301267': 279788.20,
-    '32301268': 54409.78,
-    '32301269': 220935.00,
-    '32301270': 137155.54,
-    '32301271': 284693.61,
-    '32301272': 257343.20,
-    '32301273': 489246.91,
-    '32301274': 421859.26,
-    '32301275': 471980.44,
-    '32301276': 172896.52,
-    '32301277': 84232.31,
-    '32301278': 149234.83,
-    '32301279': 121404.83,
-    '32301280': 350835.83,
-    '32301281': 130438.51,
-    '32301282': 64672.59,
-    '32301283': 184892.96,
-    '32301284': 402824.45,
-    '32301285': 312767.82,
-    '32301286': 185519.77,
-    '32301287': 251673.39,
-    '32301288': 333128.03,
-    '32301289': 737066.96,
-    '32301290': 187696.77,
-    '32301291': 283580.63,
-    '32301292': 118926.94,
-    '32301512': 7089875.82,
-    '32301513': 27623775.46,
-    '32301811': 58961.20,
-    '32301A1I': 43379325.50,
-    '32301AFU': 312933.05,
-    '32301B00': 44292754.96,
-    '32301C00': 352817.02,
-    '32301D00': 1410926.65,
-    '32301I00': 3701946.36,
-    '32301I6L': 6288037.61,
-    '32301IZC': 4897442.93,
-    '32301IZI': 177676.32,
-    '32301JAG': 31120636.30,
-    '32301RJL': 9181240.11,
-    '32302A1I': 1910884.84,
-    '32302IZC': 310672.57,
-    '32502221': 19308938.91,
-    '32502A1I': 6217397.24,
-    '32502B00': 88954637.14,
-    '32502D00': 2080811.61,
-    '32502I00': 31080934.20,
-    '32502I6L': 2630466.83,
-    '32502IZI': 643132.02,
-    '32502RJL': 11780339.30,
-    '32503512': 21405298.95,
-    '32503A1I': 20622.66,
-    '32503B00': 86083484.26,
-    '32503C00': 3301585.80,
-    '32503D00': 187822.63,
-    '32503I00': 625824.96,
-    '32503JAG': 4819370.00,
-    '32503RJL': 2945084.74,
-    '32505IZC': 21210764.34,
-    '32601111': 982699.01,
-    '32601512': 3525135.26,
-    '32601A1I': 3230981.25,
-    '32601IZC': 2338580.01,
-    '32601JAG': 412000.00,
-    '32701100': 8622.54,
-    '32701110': 1514.10,
-    '32701112': 1448.09,
-    '32701513': 8652817.55,
-    '32701810': 284333.72,
-    '32701A1I': 129085439.07,
-    '32701AFU': 404822.43,
-    '32701B00': 22522633.48,
-    '32701C00': 15831.37,
-    '32701D00': 194605.04,
-    '32701I00': 2902661.39,
-    '32701I6L': 15963.98,
-    '32701I9H': 96807.64,
-    '32701IZC': 24515600.30,
-    '32701IZI': 46235.27,
-    '32701JAG': 5224160.00,
-    '32701RJL': 1303226.38,
-    '32903285': 13716.30,
-    '32903B00': 31453.71,
-    '32903I00': 100263.27,
-    '33104512': 293549.99,
-    '33104A1I': 10033442.18,
-    '33104AFU': 2074988.27,
-    '33104B00': 588877.49,
-    '33104C00': 317055.71,
-    '33104I00': 476502.50,
-    '33104I6L': 1150315.87,
-    '33104I9H': 628300.00,
-    '33104IZC': 1023632.00,
-    '33104IZI': 359907.68,
-    '33104JAG': 459380.00,
-    '33104RJL': 305687.26,
-    '33105A1I': 260365.46,
-    '33105D00': 189085.46,
-    '33201263': 60831.80,
-    '33201277': 6739.29,
-    '33201512': 2726093.08,
-    '33201IZC': 590231.20,
-    '33301513': 26570304.76,
-    '33301A1I': 6477883.21,
-    '33301B00': 47955818.14,
-    '33301IZC': 1221262.19,
-    '33301IZI': 120236.29,
-    '33301JAG': 275010.00,
-    '33301RJL': 391285.81,
-    '33302800': 49548681.24,
-    '33302811': 2840649.20,
-    '33302A1I': 142679.72,
-    '33302IZC': 72932.24,
-    '33302JAG': 275010.00,
-    '33303A1I': 2120139.64,
-    '33303D00': 5376.60,
-    '33304A1I': 715307.19,
-    '33304B00': 15429655.26,
-    '33304D00': 64041.28,
-    '33304JAG': 23690.00,
-    '33401511': 34947.90,
-    '33401A1I': 17801823.72,
-    '33401B00': 5198540.44,
-    '33401C00': 60403.11,
-    '33401I00': 35844.00,
-    '33401I6L': 271464.74,
-    '33401I9H': 117921.61,
-    '33401IZC': 3993528.36,
-    '33401JAG': 590190.00,
-    '33501810': 462387.60,
-    '33501A1I': 6744071.26,
-    '33501D00': 25305.03,
-    '33501IZC': 126001.96,
-    '33602100': 59980.75,
-    '33602110': 17131.05,
-    '33602111': 3355.75,
-    '33602200': 8739.96,
-    '33602235': 2688.30,
-    '33602267': 5246.76,
-    '33602275': 15600.58,
-    '33602278': 4120.00,
-    '33602411': 1362.07,
-    '33602510': 4423.15,
-    '33602511': 404511.49,
-    '33602512': 23603.51,
-    '33602A1I': 4228063.48,
-    '33602B00': 676885.50,
-    '33602D00': 17922.00,
-    '33602I00': 75002.52,
-    '33602I9H': 249488.66,
-    '33602IZC': 6569662.09,
-    '33602JAG': 3886190.00,
-    '33606A1I': 202197.24,
-    '33801260': 1691657.15,
-    '33801261': 563323.11,
-    '33801262': 405938.30,
-    '33801263': 1693259.54,
-    '33801264': 697690.95,
-    '33801265': 1309202.10,
-    '33801266': 5229998.04,
-    '33801267': 1126193.76,
-    '33801268': 2899229.25,
-    '33801269': 3148828.34,
-    '33801270': 2689006.23,
-    '33801271': 236953.53,
-    '33801272': 3096413.19,
-    '33801273': 3079360.20,
-    '33801274': 1920834.51,
-    '33801275': 2232913.93,
-    '33801276': 1947643.48,
-    '33801277': 324985.31,
-    '33801278': 803130.24,
-    '33801279': 1178500.25,
-    '33801280': 2106415.82,
-    '33801281': 806993.69,
-    '33801282': 2241248.82,
-    '33801283': 1216046.84,
-    '33801284': 2933950.83,
-    '33801285': 1260500.00,
-    '33801286': 1854210.12,
-    '33801287': 669972.15,
-    '33801288': 1364342.12,
-    '33801289': 4439127.37,
-    '33801290': 563838.48,
-    '33801291': 1658920.06,
-    '33801292': 1294296.42,
-    '33801512': 17644365.56,
-    '33801811': 631287.00,
-    '33801A1I': 327730.55,
-    '33801AFU': 191174.18,
-    '33801B00': 81008995.01,
-    '33801C00': 1923446.72,
-    '33801D00': 2568789.14,
-    '33801I00': 14559576.51,
-    '33801I6L': 1417613.95,
-    '33801I9H': 784563.36,
-    '33801IZC': 30124229.09,
-    '33801IZI': 205946.18,
-    '33801JAG': 21599478.21,
-    '33801RJL': 14084749.95,
-    '33901512': 297133.29,
-    '33901A1I': 35936760.77,
-    '33901B00': 1298891.49,
-    '33901JAG': 186400785.39,
-    '33901RJL': 18303033.95,
-    '33903222': 51500000.00,
-    '33903260': 530895.01,
-    '33903262': 176694.88,
-    '33903263': 381704.24,
-    '33903264': 1312556.60,
-    '33903265': 728536.56,
-    '33903266': 1280716.61,
-    '33903267': 312977.93,
-    '33903268': 297475.59,
-    '33903269': 557891.18,
-    '33903270': 180357.79,
-    '33903271': 1367541.84,
-    '33903272': 1432373.64,
-    '33903273': 2653908.38,
-    '33903274': 809124.54,
-    '33903275': 796295.02,
-    '33903276': 598654.33,
-    '33903277': 625205.16,
-    '33903278': 129778.56,
-    '33903280': 673208.29,
-    '33903281': 154499.29,
-    '33903282': 95731.63,
-    '33903283': 3827.48,
-    '33903284': 279233.93,
-    '33903285': 475260.25,
-    '33903286': 606420.96,
-    '33903287': 385446.57,
-    '33903288': 610738.34,
-    '33903289': 540248.82,
-    '33903290': 656905.56,
-    '33903291': 673141.81,
-    '33903513': 174652.36,
-    '33903AFU': 5395194.21,
-    '33903B00': 12502091.73,
-    '33903D00': 4375240.00,
-    '33903I00': 680988.21,
-    '33903I9H': 4154394.79,
-    '33903IZC': 10098925.15,
-    '33903JAG': 679800.00,
-    '33903RJL': 198470559.00,
-    '35101260': 8602.56,
-    '35101261': 189221.74,
-    '35101262': 66383.50,
-    '35101263': 171512.80,
-    '35101264': 99634.99,
-    '35101265': 208186.69,
-    '35101266': 1031032.09,
-    '35101267': 347038.98,
-    '35101268': 6682.52,
-    '35101269': 514999.59,
-    '35101270': 1132572.11,
-    '35101271': 1279396.91,
-    '35101272': 235324.10,
-    '35101273': 1771262.17,
-    '35101274': 390952.36,
-    '35101275': 574840.50,
-    '35101276': 269569.47,
-    '35101277': 47066.14,
-    '35101278': 566164.22,
-    '35101279': 759895.11,
-    '35101280': 521822.44,
-    '35101281': 473000.05,
-    '35101282': 223750.95,
-    '35101283': 51500.00,
-    '35101284': 345800.43,
-    '35101285': 752584.14,
-    '35101286': 1051678.84,
-    '35101287': 363227.43,
-    '35101288': 205999.99,
-    '35101289': 783136.21,
-    '35101290': 208039.65,
-    '35101291': 89980.49,
-    '35101292': 225146.05,
-    '35101512': 28609315.95,
-    '35101811': 264039.63,
-    '35101A1I': 59931555.28,
-    '35101B00': 63652435.12,
-    '35101C00': 7105847.48,
-    '35101I00': 1449288.38,
-    '35101I6L': 59250.75,
-    '35101I9H': 674673.69,
-    '35101IZC': 34410420.54,
-    '35101IZI': 292204.17,
-    '35101RJL': 9571389.20,
-    '35102B00': 57736670.70,
-    '35102D00': 924778.62,
-    '35102I6L': 3605.00,
-    '35201235': 3697.38,
-    '35201261': 254523.90,
-    '35201262': 41200.00,
-    '35201263': 91871.26,
-    '35201264': 36315.74,
-    '35201265': 33063.00,
-    '35201266': 268611.64,
-    '35201267': 174175.10,
-    '35201270': 5150.00,
-    '35201271': 455895.65,
-    '35201272': 19788.36,
-    '35201273': 58079.23,
-    '35201274': 30900.00,
-    '35201275': 65049.65,
-    '35201277': 79830.74,
-    '35201278': 58253.86,
-    '35201279': 20600.00,
-    '35201282': 142205.07,
-    '35201284': 339900.00,
-    '35201285': 340795.90,
-    '35201286': 324074.99,
-    '35201287': 123476.10,
-    '35201288': 20600.00,
-    '35201289': 62989.65,
-    '35201291': 26021.51,
-    '35201292': 260075.00,
-    '35201512': 113267.04,
-    '35201A1I': 3536523.54,
-    '35201B00': 2060.00,
-    '35201D00': 110748.90,
-    '35201I00': 78797.06,
-    '35201I6L': 186734.58,
-    '35201I9H': 9146.40,
-    '35201IZC': 1863595.24,
-    '35201JAG': 24771500.00,
-    '35801100': 18939.64,
-    '35801260': 1548338.90,
-    '35801261': 2270199.37,
-    '35801262': 770527.93,
-    '35801263': 2090283.29,
-    '35801264': 1964260.79,
-    '35801265': 1145463.62,
-    '35801266': 4437661.61,
-    '35801267': 4112407.46,
-    '35801268': 708182.64,
-    '35801269': 3624217.93,
-    '35801270': 3360771.29,
-    '35801271': 4500661.08,
-    '35801272': 3864957.53,
-    '35801273': 5693460.96,
-    '35801274': 2731066.33,
-    '35801275': 3785933.84,
-    '35801276': 1504909.72,
-    '35801277': 1444922.06,
-    '35801278': 1743371.27,
-    '35801279': 5652226.95,
-    '35801280': 4840495.20,
-    '35801281': 502891.32,
-    '35801282': 1262205.84,
-    '35801283': 3114244.67,
-    '35801284': 4483519.22,
-    '35801285': 4416031.18,
-    '35801286': 3141881.63,
-    '35801287': 5191628.68,
-    '35801288': 1810041.72,
-    '35801289': 2776204.20,
-    '35801290': 3344489.60,
-    '35801291': 2345386.97,
-    '35801292': 3330723.68,
-    '35801512': 15427699.29,
-    '35801811': 931458.91,
-    '35801A1I': 2447755.86,
-    '35801AFU': 156550.50,
-    '35801B00': 112722221.80,
-    '35801C00': 900541.20,
-    '35801D00': 4029417.41,
-    '35801I00': 17455643.77,
-    '35801I6L': 3740134.97,
-    '35801I9H': 815451.00,
-    '35801IZC': 2673698.51,
-    '35801IZI': 512684.64,
-    '35801JAG': 7358299.40,
-    '35801RJL': 10869801.27,
-    '35901260': 8022.66,
-    '35901261': 81372.06,
-    '35901264': 10815.00,
-    '35901265': 4659.72,
-    '35901267': 96012.67,
-    '35901269': 203013.80,
-    '35901270': 822290.38,
-    '35901271': 103000.00,
-    '35901272': 6756.79,
-    '35901273': 392153.28,
-    '35901274': 55620.00,
-    '35901275': 37460.91,
-    '35901276': 259581.58,
-    '35901277': 43036.70,
-    '35901278': 10217.60,
-    '35901280': 17922.00,
-    '35901281': 109062.11,
-    '35901283': 4434.86,
-    '35901284': 176427.08,
-    '35901285': 170032.52,
-    '35901286': 40742.68,
-    '35901287': 165025.37,
-    '35901289': 25492.50,
-    '35901290': 293506.74,
-    '35901291': 4540.24,
-    '35901512': 2061497.12,
-    '35901811': 13544.52,
-    '35901A1I': 6045472.73,
-    '35901B00': 19749372.83,
-    '35901C00': 110250.35,
-    '35901D00': 12692.89,
-    '35901I00': 2604.66,
-    '35901I6L': 229889.82,
-    '35901I9H': 32778.72,
-    '35901IZC': 2193745.17,
-    '35901JAG': 1650060.00,
-    '35901RJL': 269990.58,
-    '36101111': 3603036.13,
-    '36101B00': 5284156.92,
-    '36101I00': 1604482.50,
-    '36101I6L': 9438.92,
-    '36901111': 115875.00,
-    '36901I00': 19463.29,
-    '37101C00': 740418.30,
-    '37101IZC': 1270928.53,
-    '37101IZI': 176354.54,
-    '37101RJL': 3776087.39,
-    '37104100': 1035184.87,
-    '37104110': 191385.33,
-    '37104111': 801074.84,
-    '37104112': 78644.47,
-    '37104117': 37742.29,
-    '37104200': 308903.88,
-    '37104212': 222733.96,
-    '37104214': 104789.04,
-    '37104220': 13577.46,
-    '37104225': 387240.84,
-    '37104226': 470315.78,
-    '37104227': 252227.43,
-    '37104235': 111550.39,
-    '37104241': 44529.99,
-    '37104245': 93924.67,
-    '37104250': 307232.52,
-    '37104260': 4149.08,
-    '37104261': 61816.48,
-    '37104262': 43978.94,
-    '37104263': 84577.42,
-    '37104264': 27650.35,
-    '37104265': 19072.51,
-    '37104266': 61876.22,
-    '37104267': 35792.21,
-    '37104269': 58716.53,
-    '37104273': 102907.30,
-    '37104277': 13887.49,
-    '37104278': 65068.72,
-    '37104282': 11989.20,
-    '37104284': 23999.41,
-    '37104285': 36589.32,
-    '37104286': 80099.22,
-    '37104287': 123042.77,
-    '37104290': 41896.28,
-    '37104291': 33763.40,
-    '37104292': 40286.45,
-    '37104311': 195200.45,
-    '37104411': 75455.34,
-    '37104500': 54820.72,
-    '37104512': 48946.93,
-    '37104811': 23677.64,
-    '37104AFU': 18809.86,
-    '37104B00': 15266989.60,
-    '37104D00': 5571.87,
-    '37104I00': 7522551.06,
-    '37104I6L': 432493.91,
-    '37104I9H': 310408.01,
-    '37104IZC': 916003.90,
-    '37104IZI': 219808.68,
-    '37104JAG': 7109060.00,
-    '37104RJL': 1275939.28,
-    '37106100': 54922.69,
-    '37106117': 21034.66,
-    '37106B00': 1648245.83,
-    '37106C00': 25639.79,
-    '37106I00': 39425.91,
-    '37106IZC': 115459.91,
-    '37201110': 33477.06,
-    '37201112': 18395.80,
-    '37201117': 22242.85,
-    '37201200': 5371.45,
-    '37201212': 1442.00,
-    '37201235': 1390.50,
-    '37201510': 16583.00,
-    '37201810': 3790.40,
-    '37201A1I': 13799428.09,
-    '37201AFU': 30900.00,
-    '37201C00': 1277.20,
-    '37201I6L': 51500.00,
-    '37201IZI': 70476.72,
-    '37201RJL': 85628.02,
-    '37204100': 14400.96,
-    '37204110': 13198.42,
-    '37204212': 19615.32,
-    '37204226': 11423.55,
-    '37204227': 968.20,
-    '37204245': 922.88,
-    '37204260': 12514.01,
-    '37204261': 555.17,
-    '37204263': 2535.39,
-    '37204264': 5477.54,
-    '37204265': 868.29,
-    '37204266': 2575.00,
-    '37204267': 2023.95,
-    '37204269': 4385.74,
-    '37204271': 3693.07,
-    '37204273': 24637.08,
-    '37204274': 1715.98,
-    '37204275': 37311.75,
-    '37204276': 1678.90,
-    '37204277': 13925.60,
-    '37204278': 875.50,
-    '37204279': 6490.11,
-    '37204284': 1802.50,
-    '37204285': 2163.62,
-    '37204286': 3360.83,
-    '37204287': 5774.18,
-    '37204288': 2966.40,
-    '37204289': 33246.99,
-    '37204290': 1215.40,
-    '37204291': 3385.61,
-    '37204292': 838.85,
-    '37204311': 1265.87,
-    '37204411': 284.28,
-    '37204811': 927.00,
-    '37204AFU': 6180.00,
-    '37204B00': 773314.15,
-    '37204D00': 20427.99,
-    '37204I00': 60924.92,
-    '37204I6L': 25750.00,
-    '37204I9H': 39273.90,
-    '37204IZC': 1745134.68,
-    '37204IZI': 80163.87,
-    '37204JAG': 1430670.00,
-    '37204RJL': 19149.90,
-    '37206A1I': 95270.88,
-    '37301I00': 226.60,
-    '37501264': 61285.00,
-    '37501277': 20125.20,
-    '37501279': 66186.24,
-    '37501285': 16233.83,
-    '37501C00': 780599.41,
-    '37501I6L': 325148.34,
-    '37501IZC': 4456876.11,
-    '37501IZI': 76293.16,
-    '37501RJL': 3933589.78,
-    '37504100': 320203.05,
-    '37504110': 42643.02,
-    '37504111': 170481.50,
-    '37504112': 6740.32,
-    '37504117': 25422.59,
-    '37504200': 54064.61,
-    '37504212': 68024.44,
-    '37504214': 30149.67,
-    '37504220': 16828.18,
-    '37504225': 37191.83,
-    '37504226': 90861.99,
-    '37504227': 6123.16,
-    '37504231': 782.80,
-    '37504235': 18881.52,
-    '37504241': 6026.16,
-    '37504245': 18913.65,
-    '37504250': 81375.33,
-    '37504260': 16689.38,
-    '37504261': 95594.31,
-    '37504262': 62454.04,
-    '37504263': 85513.32,
-    '37504264': 138088.56,
-    '37504265': 20495.10,
-    '37504266': 91586.70,
-    '37504267': 159395.69,
-    '37504269': 77665.79,
-    '37504270': 57227.79,
-    '37504271': 145293.96,
-    '37504272': 69232.28,
-    '37504273': 67477.84,
-    '37504274': 2684.19,
-    '37504275': 106133.48,
-    '37504276': 74335.17,
-    '37504277': 35985.29,
-    '37504278': 55884.14,
-    '37504279': 167188.18,
-    '37504280': 44412.13,
-    '37504281': 73009.15,
-    '37504282': 132801.13,
-    '37504283': 92286.46,
-    '37504284': 97369.09,
-    '37504285': 168160.83,
-    '37504286': 33785.36,
-    '37504287': 97099.41,
-    '37504288': 8815.76,
-    '37504289': 605024.32,
-    '37504290': 64913.53,
-    '37504291': 26693.26,
-    '37504292': 15338.76,
-    '37504311': 2171.32,
-    '37504411': 27202.26,
-    '37504413': 4874.98,
-    '37504500': 13461.07,
-    '37504511': 1892.12,
-    '37504512': 27143.58,
-    '37504610': 947.09,
-    '37504611': 2955.36,
-    '37504811': 5253.00,
-    '37504A1I': 43772551.69,
-    '37504AFU': 19620.52,
-    '37504B00': 12032410.43,
-    '37504D00': 237746.86,
-    '37504I00': 8350305.78,
-    '37504I6L': 478582.29,
-    '37504I9H': 381086.61,
-    '37504IZC': 1301449.42,
-    '37504IZI': 712657.00,
-    '37504JAG': 6899970.00,
-    '37504RJL': 620082.66,
-    '37602100': 14741.49,
-    '37602117': 25320.49,
-    '37602A1I': 8215150.22,
-    '37602B00': 1083879.98,
-    '37602C00': 39205.53,
-    '37602I00': 119344.40,
-    '37602IZC': 22763.00,
-    '37901261': 17252.50,
-    '37901277': 19827.50,
-    '37901279': 6180.00,
-    '37901I00': 6930355.00,
-    '37901JAG': 537660.00,
-    '37901RJL': 24275.04,
-    '38301A1I': 388027.78,
-    '38301RJL': 5150.00,
-    '38401AFU': 25750.00,
-    '38401JAG': 160680.00,
-    '38501I6L': 10506.00,
-}
-# ============================================================================
-# PASIVOS 2026 - DATOS PRECARGADOS
-# Fuente: Formato_de_pasivos_2026_-_Fiscales_totalidad.xlsx
-# Estructura: UR → {'Devengado': x, 'Pagado': y, 'Pasivo': z}
-# - Devengado: Pasivos reportados a la SHCP
-# - Pagado: Pasivos pagados en COP 10
-# - Pasivo: Monto pendiente (devengado - pagado)
-# ============================================================================
-
-PASIVOS_2026 = {
-    '100': {'Devengado': 816057.37, 'Pagado': 682598.85, 'Pasivo': 133458.52},
-    '108': {'Devengado': 39010.0, 'Pagado': 0.0, 'Pasivo': 39010.0},
-    '111': {'Devengado': 1014618.77, 'Pagado': 935602.56, 'Pasivo': 79016.21},
-    '113': {'Devengado': 445791.5, 'Pagado': 140774.0, 'Pasivo': 305017.5},
-    '117': {'Devengado': 388274205.56, 'Pagado': 20422.0, 'Pasivo': 388253783.56},
-    '121': {'Devengado': 207957.91, 'Pagado': 198459.15, 'Pasivo': 9498.76},
-    '200': {'Devengado': 298776.53, 'Pagado': 0.0, 'Pasivo': 298776.53},
-    '212': {'Devengado': 103466.89, 'Pagado': 0.0, 'Pasivo': 103466.89},
-    '214': {'Devengado': 18989.01, 'Pagado': 0.0, 'Pasivo': 18989.01},
-    '221': {'Devengado': 8997101.66, 'Pagado': 7085505.79, 'Pasivo': 1911595.87},
-    '222': {'Devengado': 213934180.0, 'Pagado': 213408676.5, 'Pasivo': 525503.5},
-    '225': {'Devengado': 348136.68, 'Pagado': 302846.98, 'Pasivo': 45289.7},
-    '226': {'Devengado': 509967.51, 'Pagado': 151045.26, 'Pasivo': 358922.25},
-    '227': {'Devengado': 473158.89, 'Pagado': 0.0, 'Pasivo': 473158.89},
-    '230': {'Devengado': 21469.53, 'Pagado': 0.0, 'Pasivo': 21469.53},
-    '231': {'Devengado': 145347.49, 'Pagado': 0.0, 'Pasivo': 145347.49},
-    '232': {'Devengado': 206025.65, 'Pagado': 0.0, 'Pasivo': 206025.65},
-    '233': {'Devengado': 559194.51, 'Pagado': 0.0, 'Pasivo': 559194.51},
-    '240': {'Devengado': 137630.99, 'Pagado': 0.0, 'Pasivo': 137631.99},
-    '241': {'Devengado': 137627.65, 'Pagado': 0.0, 'Pasivo': 137348.65},
-    '242': {'Devengado': 133932.24, 'Pagado': 0.0, 'Pasivo': 132168.19},
-    '245': {'Devengado': 90708.97, 'Pagado': 59769.0, 'Pasivo': 30939.97},
-    '260': {'Devengado': 1534475.39, 'Pagado': 1114929.62, 'Pasivo': 419545.77},
-    '261': {'Devengado': 837601.0, 'Pagado': 235981.81, 'Pasivo': 601619.19},
-    '262': {'Devengado': 2264746.02, 'Pagado': 1950348.55, 'Pasivo': 314397.47},
-    '263': {'Devengado': 1224868.22, 'Pagado': 72476.52, 'Pasivo': 1152391.7},
-    '264': {'Devengado': 3410796.34, 'Pagado': 0.0, 'Pasivo': 3410796.34},
-    '265': {'Devengado': 791170.2, 'Pagado': 685756.12, 'Pasivo': 105414.08},
-    '266': {'Devengado': 17555230.55, 'Pagado': 14952085.48, 'Pasivo': 2603145.07},
-    '267': {'Devengado': 41774.83, 'Pagado': 22167.87, 'Pasivo': 19606.96},
-    '268': {'Devengado': 6949012.66, 'Pagado': 5957837.52, 'Pasivo': 886679.42},
-    '269': {'Devengado': 5543179.22, 'Pagado': 4432874.05, 'Pasivo': 1110305.16},
-    '270': {'Devengado': 14075066.55, 'Pagado': 7453753.81, 'Pasivo': 6621312.74},
-    '271': {'Devengado': 3434700.41, 'Pagado': 0.0, 'Pasivo': 3434700.41},
-    '272': {'Devengado': 4598784.18, 'Pagado': 3870490.44, 'Pasivo': 728293.74},
-    '273': {'Devengado': 664251.27, 'Pagado': 0.0, 'Pasivo': 664251.27},
-    '274': {'Devengado': 1108348.89, 'Pagado': 3355534.9, 'Pasivo': 1110348.89},
-    '275': {'Devengado': 2678125.04, 'Pagado': 2393949.58, 'Pasivo': 284175.46},
-    '276': {'Devengado': 3297730.32, 'Pagado': 2760952.78, 'Pasivo': 543902.55},
-    '277': {'Devengado': 81627.43, 'Pagado': 0.0, 'Pasivo': 81627.43},
-    '278': {'Devengado': 4431021.2, 'Pagado': 4007924.14, 'Pasivo': 418828.09},
-    '279': {'Devengado': 1687582.87, 'Pagado': 0.0, 'Pasivo': 1687582.87},
-    '280': {'Devengado': 615844.07, 'Pagado': 297275.39, 'Pasivo': 325424.93},
-    '281': {'Devengado': 12114.98, 'Pagado': 0.0, 'Pasivo': 12114.98},
-    '282': {'Devengado': 3988044.82, 'Pagado': 3156665.53, 'Pasivo': 831379.29},
-    '283': {'Devengado': 9427901.63, 'Pagado': 4510534.89, 'Pasivo': 4917366.74},
-    '284': {'Devengado': 3264755.74, 'Pagado': 2576400.91, 'Pasivo': 688354.83},
-    '285': {'Devengado': 700313.23, 'Pagado': 66420.0, 'Pasivo': 633893.23},
-    '286': {'Devengado': 954678.08, 'Pagado': 0.0, 'Pasivo': 954678.08},
-    '287': {'Devengado': 824350.86, 'Pagado': 741871.75, 'Pasivo': 82479.11},
-    '288': {'Devengado': 27760.47, 'Pagado': 0.0, 'Pasivo': 716031.48},
-    '289': {'Devengado': 1945410.77, 'Pagado': 1931899.59, 'Pasivo': 13511.18},
-    '290': {'Devengado': 107696.78, 'Pagado': 0.0, 'Pasivo': 148410.46},
-    '291': {'Devengado': 1223961.85, 'Pagado': 0.0, 'Pasivo': 1223961.85},
-    '292': {'Devengado': 685453.72, 'Pagado': 189946.37, 'Pasivo': 495507.35},
-    '311': {'Devengado': 108749.0, 'Pagado': 0.0, 'Pasivo': 108749.0},
-    '400': {'Devengado': 583646.36, 'Pagado': 47863.83, 'Pasivo': 535782.53},
-    '410': {'Devengado': 6667.0, 'Pagado': 0.0, 'Pasivo': 6667.0},
-    '411': {'Devengado': 300745.25, 'Pagado': 9538.0, 'Pasivo': 291207.25},
-    '413': {'Devengado': 613104.01, 'Pagado': 0.0, 'Pasivo': 613104.01},
-    '500': {'Devengado': 0.0, 'Pagado': 0.0, 'Pasivo': 0.0},
-    '510': {'Devengado': 0.0, 'Pagado': 0.0, 'Pasivo': 0.0},
-    '511': {'Devengado': 116448568.66, 'Pagado': 0.0, 'Pasivo': 116448568.66},
-    '512': {'Devengado': 99000324.91, 'Pagado': 75910780.5, 'Pasivo': 23089544.41},
-    '513': {'Devengado': 97805040.54, 'Pagado': 90965807.22, 'Pasivo': 6839233.32},
-    '700': {'Devengado': 197056.81, 'Pagado': 0.0, 'Pasivo': 197056.81},
-    'B00': {'Devengado': 846964013.44, 'Pagado': 614280745.46, 'Pasivo': 232683267.98},
-    'C00': {'Devengado': 8725856.15, 'Pagado': 7682264.34, 'Pasivo': 1043591.81},
-    'D00': {'Devengado': 10091647.4, 'Pagado': 7632264.62, 'Pasivo': 2459382.75},
-    'I00': {'Devengado': 187779979.69, 'Pagado': 73029680.67, 'Pasivo': 117868508.09},
-    'I6L': {'Devengado': 6620820.28, 'Pagado': 6493147.92, 'Pasivo': 127672.36},
-    'I9H': {'Devengado': 2457194.35, 'Pagado': 918957.32, 'Pasivo': 1538237.03},
-    'IZC': {'Devengado': 75004404.5, 'Pagado': 35333363.92, 'Pasivo': 39671040.58},
-    'RJL': {'Devengado': 96114935.73, 'Pagado': 82197460.6, 'Pasivo': 13917475.13},
-}
-
-
-def obtener_pasivos_ur(ur_codigo, usar_2026=True):
-    """
-    Obtiene los datos de pasivos para una UR específica,
-    aplicando las reglas de fusión de URs para 2026.
-    
-    Args:
-        ur_codigo: Código de la UR (puede ser el código original o el mapeado)
-        usar_2026: Si es True, aplica las fusiones de URs 2026
-    
-    Returns:
-        dict con Devengado, Pagado, Pasivo
-    """
-    ur = str(ur_codigo).strip()
-    
-    # Lista de URs originales que deben sumarse para esta UR final
-    urs_a_sumar = [ur]
-    
-    if usar_2026:
-        # Buscar todas las URs que se fusionan en esta UR destino
-        for ur_origen, ur_destino in FUSION_URS_2026.items():
-            if ur_destino == ur:
-                urs_a_sumar.append(ur_origen)
-        
-        # También buscar en el mapeo base (códigos numéricos → URs)
-        for ur_origen, ur_destino in MAPEO_UR_2025.items():
-            ur_destino_str = str(ur_destino)
-            # Si el destino es directamente esta UR
-            if ur_destino_str == ur:
-                urs_a_sumar.append(str(ur_origen))
-            # O si el destino se fusiona en esta UR
-            elif ur_destino_str in FUSION_URS_2026 and FUSION_URS_2026[ur_destino_str] == ur:
-                urs_a_sumar.append(str(ur_origen))
-    
-    # Sumar pasivos de todas las URs relacionadas
-    total_devengado = 0.0
-    total_pagado = 0.0
-    total_pasivo = 0.0
-    
-    for ur_buscar in set(urs_a_sumar):
-        if ur_buscar in PASIVOS_2026:
-            datos = PASIVOS_2026[ur_buscar]
-            total_devengado += datos['Devengado']
-            total_pagado += datos['Pagado']
-            total_pasivo += datos['Pasivo']
-    
+    if ejercido_col is None:
+        eje_cols = [c for c in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE'] if c in df.columns]
+        if eje_cols:
+            for c in eje_cols:
+                df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
+            df['EJERCIDO_REAL'] = sum(df[c] for c in eje_cols)
+            ejercido_col = 'EJERCIDO_REAL'
+        else:
+            return {'cop_62': {'monto': 0, 'urs': []}, 'cop_67': {'monto': 0, 'urs': []}}
+    df[ejercido_col] = pd.to_numeric(df[ejercido_col], errors='coerce').fillna(0)
+    df_cop62 = df[df['CONTROL_OPERATIVO'] == 62]
+    df_cop67 = df[df['CONTROL_OPERATIVO'] == 67]
     return {
-        'Devengado': round(total_devengado, 2),
-        'Pagado': round(total_pagado, 2),
-        'Pasivo': round(total_pasivo, 2),
+        'cop_62': {'monto': round(df_cop62[ejercido_col].sum(), 2), 'urs': df_cop62[ur_col].unique().tolist()},
+        'cop_67': {'monto': round(df_cop67[ejercido_col].sum(), 2), 'urs': df_cop67[ur_col].unique().tolist()},
     }
+
+
+def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
+    """
+    Calcula capítulos y top-partidas directamente desde df_original,
+    resolviendo fusiones de UR 2026.
+    Retorna (caps_ur dict, partidas_ur list).
+    """
+    caps_ur = {}
+    partidas_ur = []
+
+    if df_original is None or df_original.empty:
+        return caps_ur, partidas_ur
+
+    try:
+        df = df_original.copy()
+        df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
+
+        # Construir set de URs originales que confluyen en ur_codigo
+        urs_origen = {ur_codigo}
+        for k, v in config.get('fusion_urs', {}).items():
+            if v == ur_codigo:
+                urs_origen.add(k)
+        for k, v in config.get('mapeo_ur', {}).items():
+            dest = str(v)
+            if dest == ur_codigo:
+                urs_origen.add(str(k))
+            elif dest in config.get('fusion_urs', {}) and config['fusion_urs'].get(dest) == ur_codigo:
+                urs_origen.add(str(k))
+
+        df = df[df['ID_UNIDAD'].isin(urs_origen)]
+        if df.empty or 'CAPITULO' not in df.columns:
+            return caps_ur, partidas_ur
+
+        # Limpiar tipos
+        for col_n in ['CAPITULO', 'CONCEPTO', 'PARTIDA_GENERICA', 'PARTIDA_ESPECIFICA']:
+            if col_n in df.columns:
+                df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0).astype(int)
+
+        # Excluir cap 1 y partidas de nómina
+        df = df[df['CAPITULO'] != 1].copy()
+        df['Partida_full'] = (
+            df['CAPITULO'] * 10000 +
+            df['CONCEPTO'] * 1000 +
+            df['PARTIDA_GENERICA'] * 100 +
+            df['PARTIDA_ESPECIFICA'] * 10
+        ).astype(int)
+        df = df[~df['Partida_full'].isin([39801, 39810])]
+
+        # Filtrar COP válidos
+        if 'CONTROL_OPERATIVO' in df.columns:
+            df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
+            df = df[df['CONTROL_OPERATIVO'].isin([0, 10, 40, 50, 51])]
+
+        for col_n in ['ORIGINAL', 'MODIFICADO_AUTORIZADO', 'EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
+            if col_n in df.columns:
+                df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0)
+
+        eje_cols = [c for c in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE'] if c in df.columns]
+        df['_EJE'] = sum(df[c] for c in eje_cols) if eje_cols else 0
+
+        # ── Capítulos 2000, 3000, 4000 ──
+        for cap_num in [2, 3, 4]:
+            df_cap = df[df['CAPITULO'] == cap_num]
+            mod_val = round(float(df_cap['MODIFICADO_AUTORIZADO'].sum()), 2) if 'MODIFICADO_AUTORIZADO' in df_cap.columns else 0
+            eje_val = round(float(df_cap['_EJE'].sum()), 2)
+            caps_ur[str(cap_num)] = {
+                'Original': round(float(df_cap['ORIGINAL'].sum()), 2) if 'ORIGINAL' in df_cap.columns else 0,
+                'Modificado_periodo': mod_val,
+                'Ejercido': eje_val,
+                'Disponible': round(mod_val - eje_val, 2),
+            }
+
+        # ── Top partidas con mayor disponible ──
+        group_cols = ['Partida_full']
+        if 'PROGRAMA_PRESUPUESTARIO' in df.columns:
+            group_cols.append('PROGRAMA_PRESUPUESTARIO')
+
+        df_grp = df.groupby(group_cols).agg(
+            Modificado=('MODIFICADO_AUTORIZADO', 'sum'),
+            Ejercido=('_EJE', 'sum'),
+            Original=('ORIGINAL', 'sum'),
+        ).reset_index()
+
+        df_grp['Disponible'] = df_grp['Modificado'] - df_grp['Ejercido']
+        df_grp = df_grp[df_grp['Disponible'] > 0].sort_values('Disponible', ascending=False).head(10)
+
+        for _, row in df_grp.iterrows():
+            partida_int = int(row['Partida_full'])
+            prog = str(row.get('PROGRAMA_PRESUPUESTARIO', '')) if 'PROGRAMA_PRESUPUESTARIO' in df_grp.columns else ''
+            partidas_ur.append({
+                'Partida': partida_int,
+                'Denominacion': PARTIDAS_ESPECIFICAS.get(partida_int, ''),
+                'Programa': prog,
+                'Original': round(float(row['Original']), 2),
+                'Modificado': round(float(row['Modificado']), 2),
+                'Ejercido': round(float(row['Ejercido']), 2),
+                'Disponible': round(float(row['Disponible']), 2),
+            })
+
+    except Exception as e:
+        st.caption(f"⚠️ Error calculando capítulos/partidas: {e}")
+
+    return caps_ur, partidas_ur
+
+
+# ============================================================================
+# SIDEBAR
+# ============================================================================
+
+with st.sidebar:
+    st.markdown('<div style="text-align:center;padding:1rem;color:white;font-weight:bold;font-size:1.5rem;"> SADER</div>', unsafe_allow_html=True)
+    st.markdown("### Navegación")
+    opciones_menu = [" Inicio", " Cargar Reportes", " Ver MAP", " Ver SICOP"]
+    pagina = st.radio("Selecciona vista:", opciones_menu, label_visibility="collapsed")
+    if pagina == " Ver MAP":
+        st.caption("*Cuadro de Presupuesto*")
+    elif pagina == " Ver SICOP":
+        st.caption("*Estado del Ejercicio, Dashboard Presupuesto y Austeridad*")
+    st.markdown("---")
+    st.markdown("### Estado de Datos")
+    metadata = cargar_metadata()
+    if 'map' in metadata:
+        st.success(f" MAP: {metadata['map']['filename'][:20]}...")
+    else:
+        st.warning(" MAP: Sin datos")
+    if 'sicop' in metadata:
+        st.success(f" SICOP: {metadata['sicop']['filename'][:20]}...")
+    else:
+        st.warning(" SICOP: Sin datos")
+    st.markdown("---")
+    if st.button("🚪 Cerrar sesión", use_container_width=True):
+        st.session_state['autenticado'] = False
+        st.rerun()
+
+# ============================================================================
+# HEADER
+# ============================================================================
+
+st.markdown('<div class="main-header"><h1>Sistema de Reportes Presupuestarios</h1><p>Secretaría de Agricultura y Desarrollo Rural</p></div>', unsafe_allow_html=True)
+
+# ============================================================================
+# PÁGINA: INICIO
+# ============================================================================
+
+if pagina == " Inicio":
+    st.markdown("### Bienvenido al Sistema de Reportes")
+    mostrar_estado_datos()
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        <div class="instrucciones-box">
+            <h4> Cargar Reportes</h4>
+            <p>Sube archivos CSV de MAP o SICOP. Los datos quedarán disponibles para todos los usuarios hasta que se cargue un nuevo archivo.</p>
+            <ul>
+                <li>Los reportes se guardan automáticamente</li>
+                <li>Puedes tener MAP y SICOP cargados al mismo tiempo</li>
+                <li>Al subir un nuevo archivo, reemplaza el anterior</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div class="instrucciones-box">
+            <h4> Ver Reportes</h4>
+            <p>Navega entre los reportes cargados sin perder información.</p>
+            <ul>
+                <li><strong>Ver MAP:</strong> Cuadro de presupuesto</li>
+                <li><strong>Ver SICOP:</strong> Estado del ejercicio, Dashboard de Presupuesto y Austeridad</li>
+                <li>Descarga Excel desde cualquier vista</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ============================================================================
+# PÁGINA: CARGAR REPORTES
+# ============================================================================
+
+elif pagina == " Cargar Reportes":
+    st.markdown("### Cargar Nuevos Reportes")
+    mostrar_estado_datos()
+    st.markdown("---")
+    col_map, col_sicop = st.columns(2)
+    with col_map:
+        st.markdown("####  Cargar MAP")
+        uploaded_map = st.file_uploader("Archivo CSV de MAP", type=['csv'], key="upload_map")
+        if uploaded_map is not None:
+            try:
+                df_map = pd.read_csv(uploaded_map, encoding='latin-1')
+                with st.spinner("Procesando MAP..."):
+                    resultados_map = procesar_map(df_map, uploaded_map.name)
+                    guardar_datos_map(resultados_map, uploaded_map.name)
+                st.success(f" MAP procesado correctamente: {len(df_map):,} registros")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al procesar MAP: {str(e)}")
+    with col_sicop:
+        st.markdown("####  Cargar SICOP")
+        uploaded_sicop = st.file_uploader("Archivo CSV de SICOP", type=['csv'], key="upload_sicop")
+        if uploaded_sicop is not None:
+            try:
+                df_sicop = pd.read_csv(uploaded_sicop, encoding='latin-1')
+                with st.spinner("Procesando SICOP..."):
+                    resultados_sicop = procesar_sicop(df_sicop, uploaded_sicop.name)
+                    guardar_datos_sicop(resultados_sicop, df_sicop, uploaded_sicop.name)
+                st.success(f" SICOP procesado correctamente: {len(df_sicop):,} registros")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al procesar SICOP: {str(e)}")
+
+# ============================================================================
+# PÁGINA: VER MAP
+# ============================================================================
+
+elif pagina == " Ver MAP":
+    resultados = cargar_datos_map()
+    if resultados is None:
+        st.warning(" No hay datos de MAP cargados. Ve a 'Cargar Reportes' para subir un archivo.")
+        st.stop()
+
+    metadata_map = resultados['metadata']
+    config = metadata_map['config']
+    totales = resultados['totales']
+    ultimo_habil = obtener_ultimo_dia_habil(date.today())
+
+    col_titulo, col_descarga = st.columns([3, 1])
+    with col_titulo:
+        st.markdown("### Reporte MAP - Cuadro de Presupuesto")
+    with col_descarga:
+        excel_bytes = generar_excel_map(resultados)
+        fecha_str = date.today().strftime("%d%b%Y").upper()
+        st.download_button(label=" Descargar Excel", data=excel_bytes,
+            file_name=f'Cuadro_Presupuesto_{fecha_str}.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    st.markdown("---")
+    st.markdown(f'### Estado del ejercicio al {formatear_fecha(date.today())} del Ramo 08 "Agricultura y Desarrollo Rural"')
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(create_kpi_card("PEF Original", format_currency(totales['Original'])), unsafe_allow_html=True)
+    with col2:
+        st.markdown(create_kpi_card("Modificado Anual", format_currency(totales['ModificadoAnualNeto']), "", COLOR_VINO), unsafe_allow_html=True)
+    with col3:
+        st.markdown(create_kpi_card("Mod. Periodo", format_currency(totales['ModificadoPeriodoNeto']), "", COLOR_BEIGE), unsafe_allow_html=True)
+    with col4:
+        st.markdown(create_kpi_card("Ejercido", format_currency(totales['Ejercido']), "", COLOR_NARANJA), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("#### Concepto / Programa Presupuestario")
+
+    cuadro_data = []
+    categorias = resultados['categorias']
+    programas = resultados.get('programas', {})
+    programas_especificos = config.get('programas_especificos', [])
+    programas_nombres = config.get('programas_nombres', {})
+    nombres_especiales = config.get('nombres_especiales', {})
+
+    cuadro_data.append({'Concepto': 'Totales:', 'Original': totales['Original'],
+        'Mod. Anual': totales['ModificadoAnualNeto'], 'Mod. Periodo': totales['ModificadoPeriodoNeto'],
+        'Ejercido': totales['Ejercido'],
+        'Disponible': totales['ModificadoPeriodoNeto'] - totales['Ejercido'],
+        '% Avance': totales['Ejercido'] / totales['ModificadoPeriodoNeto'] * 100 if totales['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'total'})
+
+    cat_sp = categorias.get('servicios_personales', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cuadro_data.append({'Concepto': 'Servicios Personales', 'Original': cat_sp['Original'],
+        'Mod. Anual': cat_sp['ModificadoAnualNeto'], 'Mod. Periodo': cat_sp['ModificadoPeriodoNeto'],
+        'Ejercido': cat_sp['Ejercido'], 'Disponible': cat_sp['ModificadoPeriodoNeto'] - cat_sp['Ejercido'],
+        '% Avance': cat_sp['Ejercido'] / cat_sp['ModificadoPeriodoNeto'] * 100 if cat_sp['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'subtotal'})
+
+    cat_gc = categorias.get('gasto_corriente', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cuadro_data.append({'Concepto': 'Gasto corriente 1/', 'Original': cat_gc['Original'],
+        'Mod. Anual': cat_gc['ModificadoAnualNeto'], 'Mod. Periodo': cat_gc['ModificadoPeriodoNeto'],
+        'Ejercido': cat_gc['Ejercido'], 'Disponible': cat_gc['ModificadoPeriodoNeto'] - cat_gc['Ejercido'],
+        '% Avance': cat_gc['Ejercido'] / cat_gc['ModificadoPeriodoNeto'] * 100 if cat_gc['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'subtotal'})
+
+    cat_otros = categorias.get('otros_programas', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    congelados = resultados.get('congelados', {})
+
+    subtotal_subs = {
+        'Original':             sum(programas.get(p, {}).get('Original', 0)             for p in programas_especificos) + cat_otros['Original'],
+        'ModificadoAnualNeto':  sum(programas.get(p, {}).get('ModificadoAnualNeto', 0)  for p in programas_especificos) + cat_otros['ModificadoAnualNeto'],
+        'ModificadoPeriodoNeto':sum(programas.get(p, {}).get('ModificadoPeriodoNeto', 0) for p in programas_especificos) + cat_otros['ModificadoPeriodoNeto'],
+        'Ejercido':             sum(programas.get(p, {}).get('Ejercido', 0)             for p in programas_especificos) + cat_otros['Ejercido'],
+    }
+    cuadro_data.append({'Concepto': 'Subsidios y Gastos asociados 2/', 'Original': subtotal_subs['Original'],
+        'Mod. Anual': subtotal_subs['ModificadoAnualNeto'], 'Mod. Periodo': subtotal_subs['ModificadoPeriodoNeto'],
+        'Ejercido': subtotal_subs['Ejercido'], 'Disponible': subtotal_subs['ModificadoPeriodoNeto'] - subtotal_subs['Ejercido'],
+        '% Avance': subtotal_subs['Ejercido'] / subtotal_subs['ModificadoPeriodoNeto'] * 100 if subtotal_subs['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'subtotal'})
+
+    # Nota 3/ fija para programas SIN congelado.
+    # Programas CON congelado se numeran a partir del 3 de forma consecutiva.
+    NOTA_SIN_CONG = 3   # siempre "3/" para los sin congelado
+    nota_por_prog = {}
+    contador_nota = 4   # los que tienen congelado empiezan en 4
+    for prog in programas_especificos:
+        v_anual  = congelados.get('valores', {}).get(prog, 0)
+        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        if v_anual > 0 or v_periodo > 0:
+            nota_por_prog[prog] = contador_nota
+            contador_nota += 1
+        else:
+            nota_por_prog[prog] = NOTA_SIN_CONG  # "3/"
+
+    # Si ningún programa tiene congelado, el contador sigue en 4;
+    # si alguno tiene, el contador ya avanzó. En cualquier caso:
+    nota_6 = contador_nota        # nota para "Otros programas"
+    nota_7 = contador_nota + 1    # nota para "Bienes muebles"
+
+    for prog in programas_especificos:
+        nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
+        # Limpiar cualquier sufijo "N/" que venga hardcodeado desde config.py
+        import re as _re
+        nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
+        d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+        v_anual  = congelados.get('valores', {}).get(prog, 0)
+        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
+        tiene_cong = (v_anual > 0 or v_periodo > 0)
+        n = nota_por_prog[prog]
+        # Programas sin congelado llevan "3/" al final del nombre
+        # Programas con congelado llevan su número dinámico
+        if tiene_cong:
+            concepto = f"{prog} - {nombre_base} {n}/"
+        else:
+            concepto = f"{prog} - {nombre_base} {n}/"
+        cuadro_data.append({'Concepto': concepto, 'Original': d.get('Original', 0),
+            'Mod. Anual': d.get('ModificadoAnualNeto', 0), 'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
+            'Ejercido': d.get('Ejercido', 0), 'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
+            '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
+            '_tipo': 'programa'})
+
+    cuadro_data.append({'Concepto': f'Otros programas de subsidios y Gastos asociados {nota_6}/', 'Original': cat_otros['Original'],
+        'Mod. Anual': cat_otros['ModificadoAnualNeto'], 'Mod. Periodo': cat_otros['ModificadoPeriodoNeto'],
+        'Ejercido': cat_otros['Ejercido'], 'Disponible': cat_otros['ModificadoPeriodoNeto'] - cat_otros['Ejercido'],
+        '% Avance': cat_otros['Ejercido'] / cat_otros['ModificadoPeriodoNeto'] * 100 if cat_otros['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'programa'})
+
+    cat_bm = categorias.get('bienes_muebles', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cuadro_data.append({'Concepto': f'Bienes muebles, inmuebles e intangibles {nota_7}/', 'Original': cat_bm['Original'],
+        'Mod. Anual': cat_bm['ModificadoAnualNeto'], 'Mod. Periodo': cat_bm['ModificadoPeriodoNeto'],
+        'Ejercido': cat_bm['Ejercido'], 'Disponible': cat_bm['ModificadoPeriodoNeto'] - cat_bm['Ejercido'],
+        '% Avance': cat_bm['Ejercido'] / cat_bm['ModificadoPeriodoNeto'] * 100 if cat_bm['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'subtotal'})
+
+    df_cuadro = pd.DataFrame(cuadro_data)
+    tipos = df_cuadro['_tipo'].tolist()
+    df_mostrar = df_cuadro.drop(columns=['_tipo'])
+
+    def estilo_cuadro_map(row):
+        idx = row.name
+        tipo = tipos[idx] if idx < len(tipos) else ''
+        if tipo == 'total':
+            return ['background-color: #E6D194; font-weight: bold'] * len(row)
+        elif tipo == 'subtotal':
+            return ['background-color: #D9D9D6'] * len(row)
+        return [''] * len(row)
+
+    st.dataframe(
+        df_mostrar.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}',
+            'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}',
+            'Disponible': '${:,.2f}', '% Avance': '{:.2f}%'
+        }).apply(estilo_cuadro_map, axis=1),
+        use_container_width=True, hide_index=True, height=450,
+        column_config={'Concepto': st.column_config.TextColumn(width='large')})
+
+    st.markdown("---")
+    st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
+    st.markdown("**Notas:**")
+    st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
+    st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
+    st.markdown("3/ Sin recursos congelados para este programa.")
+    # Notas para programas CON congelado (numeradas dinámicamente desde 4)
+    for prog in programas_especificos:
+        v_anual     = congelados.get('valores', {}).get(prog, 0)
+        texto_anual = congelados.get('textos', {}).get(prog, '')
+        v_periodo   = congelados.get('valores_periodo', {}).get(prog, 0)
+        texto_periodo = congelados.get('textos_periodo', {}).get(prog, '')
+        n = nota_por_prog[prog]
+        if v_anual > 0 or v_periodo > 0:
+            nota = f"{n}/ El presupuesto modificado incluye un monto anual de \\${v_anual:,.2f} ({texto_anual}), de recursos congelados."
+            if v_periodo > 0:
+                nota += f" Y un monto al periodo de \\${v_periodo:,.2f} ({texto_periodo}), de recursos congelados."
+            st.markdown(nota)
+    st.markdown(f"{nota_6}/ Incluye diversos programas de carácter administrativo.")
+    # Nota de Bienes muebles
+    bm_anual = congelados.get('bm_anual', 0)
+    bm_anual_texto = congelados.get('bm_anual_texto', '')
+    bm_periodo = congelados.get('bm_periodo', 0)
+    bm_periodo_texto = congelados.get('bm_periodo_texto', '')
+    # Fallback: si el pickle fue generado antes de que se calculara bm_periodo,
+    # recalcularlo desde df_procesado
+    if (bm_anual == 0 or bm_periodo == 0) and 'df_procesado' in resultados:
+        try:
+            df_proc = resultados['df_procesado']
+            PROGRAMAS_ESPECIFICOS_CONF = config.get('programas_especificos', [])
+            df_bm_calc = df_proc[
+                df_proc['Capitulo'].isin([5000, 7000]) &
+                (~df_proc['Pp'].isin(PROGRAMAS_ESPECIFICOS_CONF))
+            ]
+            if not df_bm_calc.empty and 'CongeladoPeriodo' in df_bm_calc.columns:
+                if bm_anual == 0:
+                    bm_anual = round(float(df_bm_calc['CongeladoAnual'].sum()), 2)
+                if bm_periodo == 0:
+                    bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
+        except Exception:
+            pass
+    if not bm_anual_texto and bm_anual > 0:
+        bm_anual_texto = numero_a_letras_mx(bm_anual)
+    if not bm_periodo_texto and bm_periodo > 0:
+        bm_periodo_texto = numero_a_letras_mx(bm_periodo)
+    if bm_anual > 0 or bm_periodo > 0:
+        nota7 = f"{nota_7}/ El presupuesto modificado incluye un monto anual de \\${bm_anual:,.2f} ({bm_anual_texto}), de recursos congelados."
+        if bm_periodo > 0:
+            nota7 += f" Y un monto al periodo de \\${bm_periodo:,.2f} ({bm_periodo_texto}), de recursos congelados."
+        st.markdown(nota7)
+    else:
+        st.markdown(f"{nota_7}/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.")
+
+# ============================================================================
+# PÁGINA: VER SICOP
+# ============================================================================
+
+elif pagina == " Ver SICOP":
+    datos_sicop = cargar_datos_sicop()
+    if datos_sicop is None:
+        st.warning(" No hay datos de SICOP cargados. Ve a 'Cargar Reportes' para subir un archivo.")
+        st.stop()
+
+    resultados = datos_sicop['resultados']
+    df_original = datos_sicop['df_original']
+    metadata_sicop = resultados['metadata']
+    config = metadata_sicop['config']
+    ultimo_habil = obtener_ultimo_dia_habil(date.today())
+
+    col_titulo, col_descarga = st.columns([3, 1])
+    with col_titulo:
+        st.markdown("### Reporte SICOP - Estado del Ejercicio")
+    with col_descarga:
+        excel_bytes = generar_excel_sicop(resultados)
+        fecha_str = date.today().strftime("%d%b%Y").upper()
+        st.download_button(label=" Descargar Excel", data=excel_bytes,
+            file_name=f'Estado_Ejercicio_{fecha_str}.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    st.markdown("---")
+    st.markdown(f'### Estado del ejercicio del 1 de enero al {formatear_fecha(date.today())} por Unidad Responsable de la Secretaría de Agricultura y Desarrollo Rural 1/')
+
+    totales = resultados['totales']
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(create_kpi_card("Original", format_currency(totales['Original'])), unsafe_allow_html=True)
+    with col2:
+        st.markdown(create_kpi_card("Modificado Anual", format_currency(totales['Modificado_anual']), "", COLOR_VINO), unsafe_allow_html=True)
+    with col3:
+        st.markdown(create_kpi_card("Ejercido", format_currency(totales['Ejercido_acumulado']), "", COLOR_NARANJA), unsafe_allow_html=True)
+    with col4:
+        pct = totales['Pct_avance_periodo'] * 100 if totales['Pct_avance_periodo'] else 0
+        st.markdown(create_kpi_card("Avance Periodo", f"{pct:.2f}%", "", COLOR_AZUL), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    tab1, tab2, tab3 = st.tabs([" Estado del Ejercicio", " Dashboard Presupuesto", " Dashboard Austeridad"])
+
+    # ========================================================================
+    # TAB 1: Estado del Ejercicio
+    # ========================================================================
+    with tab1:
+        st.markdown("#### Estado del Ejercicio por Unidad Responsable")
+
+        resumen_df = resultados.get('resumen', pd.DataFrame())
+        subtotales = resultados.get('subtotales', {})
+        denominaciones = config.get('denominaciones', {})
+
+        secciones_config = [
+            ('sector_central', 'Sector Central', config.get('sector_central', [])),
+            ('oficinas', 'Oficinas de Representación en las Entidades Federativas', config.get('oficinas', [])),
+            ('organos_desconcentrados', 'Órganos Desconcentrados', config.get('organos_desconcentrados', [])),
+            ('entidades_paraestatales', 'Entidades Paraestatales', config.get('entidades_paraestatales', []))
+        ]
+
+        ejercicio_data = []
+        ejercicio_data.append({
+            'UR': '', 'Denominación': 'Total general:',
+            'Original': totales['Original'], 'Mod. Anual': totales['Modificado_anual'],
+            'Mod. Periodo': totales['Modificado_periodo'], 'Ejercido': totales['Ejercido_acumulado'],
+            'Disp. Anual': totales['Modificado_anual'] - totales['Ejercido_acumulado'],
+            'Disp. Periodo': totales['Disponible_periodo'],
+            '% Av. Anual': (totales['Ejercido_acumulado'] / totales['Modificado_anual'] * 100) if totales['Modificado_anual'] > 0 else 0,
+            '% Av. Periodo': (totales['Pct_avance_periodo'] * 100) if totales.get('Pct_avance_periodo') else 0,
+            '_tipo': 'total'})
+
+        for seccion_key, seccion_nombre, urs_lista in secciones_config:
+            if seccion_key in subtotales:
+                st_data = subtotales[seccion_key]
+                ejercicio_data.append({
+                    'UR': '', 'Denominación': seccion_nombre,
+                    'Original': st_data['Original'], 'Mod. Anual': st_data['Modificado_anual'],
+                    'Mod. Periodo': st_data['Modificado_periodo'], 'Ejercido': st_data['Ejercido_acumulado'],
+                    'Disp. Anual': st_data['Modificado_anual'] - st_data['Ejercido_acumulado'],
+                    'Disp. Periodo': st_data['Disponible_periodo'],
+                    '% Av. Anual': (st_data['Ejercido_acumulado'] / st_data['Modificado_anual'] * 100) if st_data['Modificado_anual'] > 0 else 0,
+                    '% Av. Periodo': (st_data['Pct_avance_periodo'] * 100) if st_data.get('Pct_avance_periodo') else 0,
+                    '_tipo': 'subtotal'})
+            contador_ur = 0
+            for ur in urs_lista:
+                ur_rows = resumen_df[resumen_df['UR'] == ur] if not resumen_df.empty else pd.DataFrame()
+                if not ur_rows.empty:
+                    ur_data = ur_rows.iloc[0]
+                    ejercicio_data.append({
+                        'UR': ur, 'Denominación': denominaciones.get(ur, ur),
+                        'Original': ur_data.get('Original', 0), 'Mod. Anual': ur_data.get('Modificado_anual', 0),
+                        'Mod. Periodo': ur_data.get('Modificado_periodo', 0), 'Ejercido': ur_data.get('Ejercido_acumulado', 0),
+                        'Disp. Anual': ur_data.get('Disponible_anual', 0), 'Disp. Periodo': ur_data.get('Disponible_periodo', 0),
+                        '% Av. Anual': (ur_data.get('Pct_avance_anual', 0) * 100) if ur_data.get('Pct_avance_anual') else 0,
+                        '% Av. Periodo': (ur_data.get('Pct_avance_periodo', 0) * 100) if ur_data.get('Pct_avance_periodo') else 0,
+                        '_tipo': 'ur_gris' if contador_ur % 2 == 1 else 'ur'})
+                    contador_ur += 1
+
+        df_ejercicio = pd.DataFrame(ejercicio_data)
+        tipos_sicop = df_ejercicio['_tipo'].tolist()
+        df_mostrar = df_ejercicio.drop(columns=['_tipo'])
+
+        def estilo_estado_ejercicio(row):
+            idx = row.name
+            tipo = tipos_sicop[idx] if idx < len(tipos_sicop) else ''
+            if tipo == 'total':
+                return ['background-color: #E6D194; font-weight: bold'] * len(row)
+            elif tipo == 'subtotal':
+                return ['background-color: #002F2A; color: white; font-weight: bold'] * len(row)
+            elif tipo == 'ur_gris':
+                return ['background-color: #D9D9D6'] * len(row)
+            return [''] * len(row)
+
+        st.dataframe(
+            df_mostrar.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}',
+                'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}',
+                'Disp. Anual': '${:,.2f}', 'Disp. Periodo': '${:,.2f}',
+                '% Av. Anual': '{:.2f}%', '% Av. Periodo': '{:.2f}%'
+            }).apply(estilo_estado_ejercicio, axis=1),
+            use_container_width=True, hide_index=True, height=800,
+            column_config={'Denominación': st.column_config.TextColumn(width='large')})
+
+        congelados_sicop = resultados.get('congelados', {})
+        st.markdown("---")
+        st.markdown(f"**Fuente:** Elaborado con la base extraída del Sistema de Contabilidad y Presupuesto (SICOP), con corte al {formatear_fecha(ultimo_habil)}.")
+        st.markdown("**Notas:**")
+        st.markdown("1/ No Incluye el capítulo 1000 \"Servicios Personales\" ni partida 39801 \"Impuesto Sobre Nóminas\".")
+        cong_anual = congelados_sicop.get('anual', 0)
+        texto_anual = congelados_sicop.get('texto_anual', '')
+        st.markdown(f"2/ El Presupuesto Modificado Anual no incluye \\${cong_anual:,.2f} ({texto_anual}), recursos congelados.")
+        cong_periodo = congelados_sicop.get('periodo', 0)
+        texto_periodo = congelados_sicop.get('texto_periodo', '')
+        st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
+
+        cop_excluidos = resultados.get('cop_excluidos', {})
+        # Asegurar que los textos en letras estén siempre presentes
+        for cop_key in ('cop_62', 'cop_67'):
+            cop_d = cop_excluidos.get(cop_key, {})
+            if cop_d.get('monto', 0) > 0 and not cop_d.get('texto', ''):
+                cop_d['texto'] = numero_a_letras_mx(cop_d['monto'])
+
+        cop62 = cop_excluidos.get('cop_62', {'monto': 0, 'urs': [], 'texto': ''})
+        cop67 = cop_excluidos.get('cop_67', {'monto': 0, 'urs': [], 'texto': ''})
+
+        partes = []
+        if cop62.get('monto', 0) > 0:
+            urs_62 = ', '.join(str(u) for u in cop62.get('urs', ['120'])) if cop62.get('urs') else '120'
+            partes.append(
+                f"COP 62 la cantidad de \\${cop62['monto']:,.2f} "
+                f"({cop62.get('texto', numero_a_letras_mx(cop62['monto']))}) "
+                f"esto en la UR {urs_62}"
+            )
+        if cop67.get('monto', 0) > 0:
+            urs_67 = ' y '.join(str(u) for u in cop67.get('urs', ['512', '513'])) if cop67.get('urs') else '512 y 513'
+            partes.append(
+                f"COP 67 la cantidad de \\${cop67['monto']:,.2f} "
+                f"({cop67.get('texto', numero_a_letras_mx(cop67['monto']))}) "
+                f"esto en las UR {urs_67}"
+            )
+        if partes:
+            st.markdown(
+                "4/ No se están considerando montos de los Controles Operativos (COP): "
+                + "; y en ".join(partes) + "."
+            )
+
+    # ========================================================================
+    # TAB 2: Dashboard Presupuesto
+    # ========================================================================
+    with tab2:
+        st.markdown("### Dashboard de Presupuesto por UR")
+
+        capitulos_por_ur = resultados.get('capitulos_por_ur', {})
+        partidas_por_ur = resultados.get('partidas_por_ur', {})
+        resumen_df = resultados.get('resumen', pd.DataFrame())
+
+        urs_disponibles = sorted([ur for ur in
+            config.get('sector_central', []) + config.get('oficinas', []) +
+            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', [])])
+
+        urs_con_nombre = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_disponibles]
+
+        ur_seleccionada = st.selectbox("Selecciona una Unidad Responsable:", options=urs_con_nombre, index=0, key="ur_dash_ppto")
+        ur_codigo = ur_seleccionada.split(" - ")[0]
+
+        ur_rows = resumen_df[resumen_df['UR'] == ur_codigo] if not resumen_df.empty else pd.DataFrame()
+
+        if ur_rows.empty:
+            st.warning(f"No hay datos disponibles para la UR {ur_codigo}")
+        else:
+            ur_data = ur_rows.iloc[0]
+            hoy = date.today()
+            meses_esp = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+            st.markdown(f"### Estado del ejercicio del 1 de enero al {hoy.day} de {meses_esp[hoy.month-1]} de {hoy.year}")
+            ur_nombre_titulo = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
+            st.markdown(f"**{ur_codigo}.- {ur_nombre_titulo}**")
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(create_kpi_card("Original", format_currency(ur_data.get('Original', 0))), unsafe_allow_html=True)
+            with c2:
+                st.markdown(create_kpi_card("Modificado Anual", format_currency(ur_data.get('Modificado_anual', 0)), "", COLOR_VINO), unsafe_allow_html=True)
+            with c3:
+                st.markdown(create_kpi_card("Modificado Periodo", format_currency(ur_data.get('Modificado_periodo', 0)), "", COLOR_BEIGE), unsafe_allow_html=True)
+            with c4:
+                st.markdown(create_kpi_card("Ejercido", format_currency(ur_data.get('Ejercido_acumulado', 0)), "", COLOR_NARANJA), unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            c5, c6, c7, c8 = st.columns(4)
+            with c5:
+                st.markdown(create_kpi_card("Disponible Anual", format_currency(ur_data.get('Disponible_anual', 0)), "", COLOR_AZUL), unsafe_allow_html=True)
+            with c6:
+                st.markdown(create_kpi_card("Disponible Periodo", format_currency(ur_data.get('Disponible_periodo', 0)), "", COLOR_AZUL), unsafe_allow_html=True)
+            with c7:
+                pct_anual = ur_data.get('Pct_avance_anual', 0) * 100 if ur_data.get('Pct_avance_anual') else 0
+                st.markdown(create_kpi_card("% Avance Anual", f"{pct_anual:.2f}%", "", COLOR_GRIS), unsafe_allow_html=True)
+            with c8:
+                pct_periodo = ur_data.get('Pct_avance_periodo', 0) * 100 if ur_data.get('Pct_avance_periodo') else 0
+                st.markdown(create_kpi_card("% Avance Periodo", f"{pct_periodo:.2f}%", "", COLOR_GRIS), unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            col_izq, col_der = st.columns([1, 1])
+
+            with col_izq:
+                cg1, cg2 = st.columns(2)
+                ejercido   = ur_data.get('Ejercido_acumulado', 0)
+                disp_anual = ur_data.get('Disponible_anual', 0)
+                disp_periodo = ur_data.get('Disponible_periodo', 0)
+
+                with cg1:
+                    st.markdown("**Avance ejercicio anual**")
+                    fig1 = go.Figure(go.Pie(values=[ejercido, max(0, disp_anual)],
+                        labels=['Ejercido','Disponible'], hole=0.6,
+                        marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                    fig1.add_annotation(text=f"{pct_anual:.2f}%", x=0.5, y=0.5,
+                        font_size=18, font_color=COLOR_VINO, showarrow=False)
+                    fig1.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
+                        margin=dict(t=10, b=30, l=10, r=10), height=200)
+                    st.plotly_chart(fig1, use_container_width=True, key="fig_sicop_anual")
+
+                with cg2:
+                    st.markdown("**Avance ejercicio periodo**")
+                    fig2 = go.Figure(go.Pie(values=[ejercido, max(0, disp_periodo)],
+                        labels=['Ejercido','Disponible'], hole=0.6,
+                        marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                    fig2.add_annotation(text=f"{pct_periodo:.2f}%", x=0.5, y=0.5,
+                        font_size=18, font_color=COLOR_VINO, showarrow=False)
+                    fig2.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
+                        margin=dict(t=10, b=30, l=10, r=10), height=200)
+                    st.plotly_chart(fig2, use_container_width=True, key="fig_sicop_periodo")
+
+                st.markdown("#### Pasivos con cargo al presupuesto")
+                pasivos_ur_data = obtener_pasivos_ur(ur_codigo, usar_2026=config.get('usar_2026', True))
+                pasivos_shcp = pasivos_ur_data.get('Pasivo', 0)
+                pasivos_cop = calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config)
+                pago_cop_total = pasivos_cop.get('PagoCOP_00', 0) + pasivos_cop.get('PagoCOP_10', 0)
+
+                st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;"><div style="font-size:0.8rem;color:#666;">Pasivos reportados a la SHCP</div><div style="font-size:1.2rem;font-weight:bold;color:#9B2247;">{format_currency(pasivos_shcp)}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;"><div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div><div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div><div style="font-size:0.8rem;color:#666;">COP 10 (pasivos ejercicio anterior)</div></div>', unsafe_allow_html=True)
+
+                st.markdown("**Avance de pago de pasivos**")
+                if pasivos_shcp > 0 and pago_cop_total > 0:
+                    pct_p = min(pago_cop_total / pasivos_shcp, 1)
+                    fig3 = go.Figure(go.Pie(values=[pct_p, 1-pct_p], labels=['Pagado','Por pagar'],
+                        hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                    fig3.add_annotation(text=f"{pct_p*100:.2f}%", x=0.5, y=0.5,
+                        font_size=18, font_color=COLOR_VINO, showarrow=False)
+                elif pasivos_shcp > 0:
+                    fig3 = go.Figure(go.Pie(values=[0, 1], labels=['Pagado','Por pagar'],
+                        hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                    fig3.add_annotation(text="0.00%", x=0.5, y=0.5,
+                        font_size=18, font_color=COLOR_VINO, showarrow=False)
+                else:
+                    fig3 = go.Figure(go.Pie(values=[1], labels=['Sin pasivos'],
+                        hole=0.6, marker_colors=['#e0e0e0'], textinfo='none'))
+                    fig3.add_annotation(text="N/A", x=0.5, y=0.5,
+                        font_size=14, font_color='#999', showarrow=False)
+                fig3.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
+                    margin=dict(t=10, b=30, l=10, r=10), height=180)
+                st.plotly_chart(fig3, use_container_width=True, key="fig_sicop_pasivos")
+
+            # ----------------------------------------------------------------
+            # col_der: Capítulos y Top Partidas con fallback a cálculo directo
+            # ----------------------------------------------------------------
+            with col_der:
+                st.markdown("#### Ejercido por Capítulo")
+
+                # Recuperar datos precalculados
+                caps_ur = capitulos_por_ur.get(ur_codigo, {})
+                partidas_ur = partidas_por_ur.get(ur_codigo, [])
+
+                # Si alguno está vacío, recalcular desde df_original
+                if not caps_ur or not partidas_ur:
+                    caps_raw, partidas_raw = calcular_caps_y_partidas_desde_raw(
+                        df_original, ur_codigo, config
+                    )
+                    if not caps_ur:
+                        caps_ur = caps_raw
+                    if not partidas_ur:
+                        partidas_ur = partidas_raw
+
+                # ── Tabla de capítulos ──
+                if caps_ur:
+                    cap_data = []
+                    for cap, cap_vals in sorted(caps_ur.items()):
+                        cap_nombre = {
+                            '2': 'Cap. 2000 - Materiales y Suministros',
+                            '3': 'Cap. 3000 - Servicios Generales',
+                            '4': 'Cap. 4000 - Subsidios y Transferencias'
+                        }.get(str(cap), f'Cap. {cap}000')
+                        mod_val = cap_vals.get('Modificado_periodo', cap_vals.get('Modificado_anual', 0))
+                        eje_val = cap_vals.get('Ejercido', cap_vals.get('Ejercido_acumulado', 0))
+                        cap_data.append({
+                            'Capítulo': cap_nombre,
+                            'Original': cap_vals.get('Original', 0),
+                            'Modificado': mod_val,
+                            'Ejercido': eje_val,
+                            'Disponible': round(mod_val - eje_val, 2),
+                        })
+                    df_caps = pd.DataFrame(cap_data)
+                    st.dataframe(
+                        df_caps.style.format({
+                            'Original': '${:,.2f}', 'Modificado': '${:,.2f}',
+                            'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}',
+                        }),
+                        use_container_width=True, hide_index=True
+                    )
+                else:
+                    st.info("No hay datos por capítulo disponibles")
+
+                # ── Top partidas ──
+                st.markdown("#### Top Partidas con Mayor Disponible")
+
+                if partidas_ur:
+                    df_partidas = pd.DataFrame(partidas_ur)
+                    cols_mostrar = ['Partida', 'Denominacion', 'Programa', 'Original', 'Modificado', 'Ejercido', 'Disponible']
+                    cols_existentes = [c for c in cols_mostrar if c in df_partidas.columns]
+                    df_partidas_display = df_partidas[cols_existentes].copy()
+                    fmt_cols = {c: '${:,.2f}' for c in ['Original', 'Modificado', 'Ejercido', 'Disponible'] if c in cols_existentes}
+                    st.dataframe(
+                        df_partidas_display.style.format(fmt_cols),
+                        use_container_width=True, hide_index=True, height=400
+                    )
+                else:
+                    st.info("No hay datos de partidas disponibles")
+
+    # ========================================================================
+    # TAB 3: Dashboard Austeridad
+    # ========================================================================
+    with tab3:
+        st.markdown("### Dashboard Austeridad")
+
+        datos_sicop_aust = procesar_sicop_austeridad(df_original)
+
+        # Usar la misma lista de URs del config (ya fusionadas/mapeadas),
+        # igual que en el Dashboard Presupuesto
+        urs_config = sorted([ur for ur in
+            config.get('sector_central', []) + config.get('oficinas', []) +
+            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', [])])
+
+        opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
+
+        ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
+        ur_codigo = ur_seleccionada.split(" - ")[0]
+        ur_nombre = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
+
+        datos_dashboard = generar_dashboard_austeridad_desde_sicop(datos_sicop_aust, ur_codigo)
+
+        año_actual = date.today().year
+        año_anterior = año_actual - 1
+        hoy_aust = date.today()
+        mes_nombre = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy_aust.month-1]
+
+        st.markdown(f"#### Estado del ejercicio del 1 de enero al {hoy_aust.day} de {mes_nombre} de {año_actual}")
+        st.markdown(f"**{ur_codigo}.- {ur_nombre}**")
+
+        total_ejercido_ant = sum(d['Ejercido_Anterior'] for d in datos_dashboard)
+        total_original     = sum(d['Original'] for d in datos_dashboard)
+        total_modificado   = sum(d['Modificado'] for d in datos_dashboard)
+        total_ejercido     = sum(d['Ejercido_Real'] for d in datos_dashboard)
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(create_kpi_card(f"Ejercido {año_anterior}", format_currency(total_ejercido_ant)), unsafe_allow_html=True)
+        with col2:
+            st.markdown(create_kpi_card("Original", format_currency(total_original)), unsafe_allow_html=True)
+        with col3:
+            st.markdown(create_kpi_card("Modificado", format_currency(total_modificado)), unsafe_allow_html=True)
+        with col4:
+            st.markdown(create_kpi_card("Ejercido Real", format_currency(total_ejercido)), unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("#### Partidas sujetas a Austeridad Republicana")
+
+        df_display = pd.DataFrame(datos_dashboard)
+        df_display = df_display.rename(columns={
+            'Denominacion': 'Denominación',
+            'Ejercido_Anterior': f'Ejercido {año_anterior}',
+            'Ejercido_Real': 'Ejercido Real',
+            'Avance_Anual': 'Avance Anual'
+        })
+        if 'Solicitud_Pago' in df_display.columns:
+            df_display = df_display.drop(columns=['Solicitud_Pago'])
+
+        def format_avance(val):
+            if val is None or val == '':
+                return ''
+            if isinstance(val, str):
+                return val
+            return f"{val:.2%}"
+
+        def color_nota(val):
+            if pd.isna(val) or val == '':
+                return ''
+            if 'Solicitar dictamen' in str(val):
+                return 'background-color: #FFB6C1'
+            elif 'Monto ejercido real mayor' in str(val):
+                return 'background-color: #FFD699'
+            return ''
+
+        styled_df = df_display.style.format({
+            f'Ejercido {año_anterior}': '${:,.2f}',
+            'Original': '${:,.2f}', 'Modificado': '${:,.2f}',
+            'Ejercido Real': '${:,.2f}',
+            'Avance Anual': lambda x: format_avance(x)
+        })
+        try:
+            styled_df = styled_df.map(color_nota, subset=['Nota'])
+        except AttributeError:
+            styled_df = styled_df.applymap(color_nota, subset=['Nota'])
+
+        st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
+
+        excel_aust_bytes = generar_excel_austeridad(
+            datos_dashboard, ur_codigo, ur_nombre,
+            año_anterior=año_anterior, año_actual=año_actual
+        )
+        st.download_button(
+            label=" Descargar Excel Austeridad",
+            data=excel_aust_bytes,
+            file_name=f'Dashboard_Austeridad_{ur_codigo}_{date.today().strftime("%d%b%Y").upper()}.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            key="download_excel_austeridad"
+        )
