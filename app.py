@@ -1035,6 +1035,7 @@ elif pagina == " Ver SICOP":
                     f'text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;">'
                     f'<div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div>'
                     f'<div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div>'
+                    f'<div style="font-size:0.8rem;color:#666;">Incluye FF 6 y COP 10</div>'
                     f'</div>', unsafe_allow_html=True)
 
                 st.markdown("**Avance de pago de pasivos**")
@@ -1069,32 +1070,6 @@ elif pagina == " Ver SICOP":
                         if 'FUENTE_FINANCIAMIENTO' in df_dx.columns:
                             df_dx['FUENTE_FINANCIAMIENTO'] = _pd.to_numeric(df_dx['FUENTE_FINANCIAMIENTO'], errors='coerce').fillna(0).astype(int)
                             df_base_dx = df_dx[(df_dx['FUENTE_FINANCIAMIENTO'] == 1) & (df_dx['CONTROL_OPERATIVO'] == 10)]
-                            st.caption(f"Registros FF=1 + COP=10: **{len(df_base_dx):,}** | Total: **${df_base_dx['EJERCIDO'].sum():,.2f}**")
-                        else:
-                            df_base_dx = df_dx[df_dx['CONTROL_OPERATIVO'] == 10]
-                            st.caption(f"Registros COP=10 (sin col FF): **{len(df_base_dx):,}**")
-                        if 'CAPITULO' in df_base_dx.columns and 'PARTIDA_ESPECIFICA' in df_base_dx.columns:
-                            df_base_dx = df_base_dx.copy()
-                            for _c in ['CAPITULO','CONCEPTO','PARTIDA_GENERICA','PARTIDA_ESPECIFICA']:
-                                if _c in df_base_dx.columns:
-                                    df_base_dx[_c] = _pd.to_numeric(df_base_dx[_c], errors='coerce').fillna(0).astype(int)
-                            df_base_dx['_P'] = (df_base_dx['CAPITULO']*10000 + df_base_dx['CONCEPTO']*1000 + df_base_dx['PARTIDA_GENERICA']*100 + df_base_dx['PARTIDA_ESPECIFICA']*10).astype(int)
-                            mask_nom_dx = (df_base_dx['CAPITULO'] == 1) | (df_base_dx['_P'] == 39801)
-                            st.caption(f"Cap 1+39801 (todos van a 511): **${df_base_dx[mask_nom_dx]['EJERCIDO'].sum():,.2f}**  |  Otros: **${df_base_dx[~mask_nom_dx]['EJERCIDO'].sum():,.2f}**")
-                            urs_dx = {ur_codigo, str(ur_codigo)}
-                            for _k, _v in config.get('mapeo_ur', {}).items():
-                                if str(_v) == ur_codigo: urs_dx.add(str(_k))
-                            for _k, _v in config.get('fusion_urs', {}).items():
-                                if str(_v) == ur_codigo: urs_dx.add(str(_k))
-                            df_ur_dx = df_base_dx[df_base_dx['ID_UNIDAD'].isin(urs_dx)]
-                            mask_ur_nom = (df_ur_dx['CAPITULO'] == 1) | (df_ur_dx['_P'] == 39801)
-                            total_ur_dx = df_ur_dx['EJERCIDO'].sum()
-                            nom_ur_dx   = df_ur_dx[mask_ur_nom]['EJERCIDO'].sum()
-                            otros_ur_dx = df_ur_dx[~mask_ur_nom]['EJERCIDO'].sum()
-                            st.caption(f"**UR {ur_codigo}** — Total bruto: ${total_ur_dx:,.2f} | Cap1/39801 (excluidos si ≠511): ${nom_ur_dx:,.2f} | Propios: ${otros_ur_dx:,.2f}")
-                            if ur_codigo == '511':
-                                nom_otras_dx = df_base_dx[~df_base_dx['ID_UNIDAD'].isin(urs_dx) & mask_nom_dx]['EJERCIDO'].sum()
-                                st.caption(f"**511** Cap1/39801 de otras URs: ${nom_otras_dx:,.2f}  →  TOTAL 511 = **${total_ur_dx + nom_otras_dx:,.2f}**")
                             if not df_ur_dx.empty:
                                 det_dx = df_ur_dx.groupby(['CAPITULO','_P'])['EJERCIDO'].sum().reset_index()
                                 det_dx.columns = ['Cap','Partida','Ejercido']
