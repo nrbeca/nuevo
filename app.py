@@ -1068,61 +1068,6 @@ elif pagina == " Ver SICOP":
                     margin=dict(t=10, b=30, l=10, r=10), height=180)
                 st.plotly_chart(fig3, use_container_width=True, key="fig_sicop_pasivos")
 
-                # ── Diagnóstico de pasivos (expandible) ──────────────────────
-                with st.expander("🔍 Diagnóstico de pasivos"):
-                    try:
-                        import pandas as _pd
-                        df_dx = df_original.copy()
-                        df_dx['ID_UNIDAD'] = df_dx['ID_UNIDAD'].astype(str)
-                        df_dx['CONTROL_OPERATIVO'] = _pd.to_numeric(df_dx['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
-                        df_dx['FUENTE_FINANCIAMIENTO'] = _pd.to_numeric(df_dx.get('FUENTE_FINANCIAMIENTO', 0), errors='coerce').fillna(0).astype(int) if 'FUENTE_FINANCIAMIENTO' in df_dx.columns else 0
-                        df_dx['EJERCIDO'] = _pd.to_numeric(df_dx['EJERCIDO'], errors='coerce').fillna(0)
-                        for _c in ['CAPITULO','CONCEPTO','PARTIDA_GENERICA','PARTIDA_ESPECIFICA']:
-                            if _c in df_dx.columns:
-                                df_dx[_c] = _pd.to_numeric(df_dx[_c], errors='coerce').fillna(0).astype(int)
-                        if 'Partida' in df_dx.columns:
-                            df_dx['Partida'] = _pd.to_numeric(df_dx['Partida'], errors='coerce').fillna(0).astype(int)
-                        else:
-                            df_dx['Partida'] = (df_dx['CAPITULO'].astype(str) + df_dx['CONCEPTO'].astype(str) + df_dx['PARTIDA_GENERICA'].astype(str) + df_dx['PARTIDA_ESPECIFICA'].astype(str).str.zfill(2)).astype(int)
-
-                        # Resolver URs origen
-                        _urs = {ur_codigo, str(ur_codigo)}
-                        for _k, _v in config.get('mapeo_ur', {}).items():
-                            if str(_v) == ur_codigo: _urs.add(str(_k))
-                        for _k, _v in config.get('fusion_urs', {}).items():
-                            if str(_v) == ur_codigo: _urs.add(str(_k))
-
-                        # Bloque A: FF=1+COP=10 — aplicar exclusión cap1/39801 igual que el cálculo real
-                        df_A_dx = df_dx[(df_dx['FUENTE_FINANCIAMIENTO'] == 1) & (df_dx['CONTROL_OPERATIVO'] == 10)]
-                        df_A_ur = df_A_dx[df_A_dx['ID_UNIDAD'].isin(_urs)]
-                        mask_nom_dx = (df_A_dx['CAPITULO'] == 1) | (df_A_dx['Partida'] == 39801)
-                        if ur_codigo == '511':
-                            # 511: sus propios + cap1/39801 de otras URs
-                            df_A_contable = _pd.concat([
-                                df_A_ur,
-                                df_A_dx[~df_A_dx['ID_UNIDAD'].isin(_urs) & mask_nom_dx]
-                            ])
-                        else:
-                            # Cualquier otra UR: excluir cap1 y 39801
-                            mask_excl = (df_A_ur['CAPITULO'] == 1) | (df_A_ur['Partida'] == 39801)
-                            df_A_contable = df_A_ur[~mask_excl]
-
-                        # Bloque B: FF=6+COP=0 — directo
-                        df_B_dx = df_dx[(df_dx['FUENTE_FINANCIAMIENTO'] == 6) & (df_dx['CONTROL_OPERATIVO'] == 0)]
-                        df_B_contable = df_B_dx[df_B_dx['ID_UNIDAD'].isin(_urs)]
-
-                        # Unir ambos bloques y mostrar por cap+partida
-                        df_total_dx = _pd.concat([df_A_contable, df_B_contable])
-                        if not df_total_dx.empty:
-                            det_dx = df_total_dx.groupby(['CAPITULO','_P'])['EJERCIDO'].sum().reset_index()
-                            det_dx.columns = ['Cap','Partida','Ejercido']
-                            det_dx = det_dx[det_dx['Ejercido'] != 0].sort_values('Ejercido', ascending=False)
-                            st.dataframe(det_dx.style.format({'Ejercido':'${:,.2f}'}), hide_index=True, use_container_width=True)
-                        else:
-                            st.caption("Sin registros de pasivos para esta UR.")
-                    except Exception as _e:
-                        st.caption(f"Error diagnóstico: {_e}")
-
 
             # ----------------------------------------------------------------
             # col_der: Capítulos y Top Partidas con fallback a cálculo directo
