@@ -242,6 +242,7 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
 
     df = df_original.copy()
+    import streamlit as _st; _st.write(f"DEBUG pasivos: ur={ur_codigo}, FF_vals={df["FUENTE_FINANCIAMIENTO"].unique().tolist() if "FUENTE_FINANCIAMIENTO" in df.columns else "NO FF"}, COP_vals={df["CONTROL_OPERATIVO"].unique().tolist()}, rows={len(df)}")
     df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
     df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
     df['EJERCIDO'] = pd.to_numeric(df['EJERCIDO'], errors='coerce').fillna(0)
