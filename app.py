@@ -291,6 +291,7 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     else:
         df_A = df[df['CONTROL_OPERATIVO'] == 10]
 
+    import streamlit as _st2; _st2.write(f"DEBUG A: ur={ur_codigo}, urs_propias={urs_propias}, df_A rows={len(df_A)}, df_A_ur rows={len(df_A_ur)}, tiene_partida={tiene_partida}, sum_sin_excluir={float(df_A_ur["EJERCIDO"].sum()):.2f}")
     df_A_ur = df_A[df_A['ID_UNIDAD'].isin(urs_propias)]
 
     if ur_codigo == '511':
