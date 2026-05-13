@@ -256,14 +256,11 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         if str(ur_dest) == str(ur_codigo):
             urs_propias.add(str(ur_orig))
 
-    # Construir columna Partida para identificar cap1 y 39801
+    # Construir columna Partida SIEMPRE desde columnas base (no usar Partida pre-existente)
     tiene_partida = False
     if 'CAPITULO' in df.columns:
         df['CAPITULO'] = pd.to_numeric(df['CAPITULO'], errors='coerce').fillna(0).astype(int)
-    if 'Partida' in df.columns:
-        df['Partida'] = pd.to_numeric(df['Partida'], errors='coerce').fillna(0).astype(int)
-        tiene_partida = True
-    elif 'PARTIDA_ESPECIFICA' in df.columns:
+    if 'PARTIDA_ESPECIFICA' in df.columns:
         for col_n in ['CONCEPTO', 'PARTIDA_GENERICA', 'PARTIDA_ESPECIFICA']:
             if col_n in df.columns:
                 df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0).astype(int)
