@@ -222,17 +222,12 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     """
     Calcula los pasivos pagados desde el DataFrame de SICOP diario.
 
-    DOS bloques (verificados con datos reales del 23-ABRIL-2026):
-
-    BLOQUE A — FF=1 + COP=10: Pasivos de recursos federales del año anterior.
-      - La UR 511 paga cap 1000 y partida 39801 de TODAS las URs.
-        En el SICOP aparecen con el ID_UNIDAD de la UR correspondiente (no 511).
-      - Cualquier UR ≠ 511: excluir cap 1 y 39801 de sus registros.
+    BLOQUE A — FF=1 + COP=10: Pasivos federales año anterior.
+      - UR != 511: excluir cap 1 y partida 39801 (los paga la 511).
       - UR 511: sus propios pagos + cap 1 y 39801 de todas las demás URs.
 
-    BLOQUE B — FF=6 + COP=0: Pasivos de ramos administrativos no correspondientes
-      al año en curso. Se suman directo a cada UR, sin ninguna exclusión
-      (FF=6 nunca tiene cap 1 en los datos reales).
+    BLOQUE B — FF=6 + COP=0: Pasivos ramos administrativos.
+      - Sumar directo a cada UR sin exclusiones.
     """
     if df_original is None or df_original.empty:
         return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
@@ -242,7 +237,6 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
 
     df = df_original.copy()
-    import streamlit as _st; _st.write(f"DEBUG pasivos: ur={ur_codigo}, FF_vals={df["FUENTE_FINANCIAMIENTO"].unique().tolist() if "FUENTE_FINANCIAMIENTO" in df.columns else "NO FF"}, COP_vals={df["CONTROL_OPERATIVO"].unique().tolist()}, rows={len(df)}")
     df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
     df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
     df['EJERCIDO'] = pd.to_numeric(df['EJERCIDO'], errors='coerce').fillna(0)
@@ -251,7 +245,7 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     if tiene_ff:
         df['FUENTE_FINANCIAMIENTO'] = pd.to_numeric(df['FUENTE_FINANCIAMIENTO'], errors='coerce').fillna(0).astype(int)
 
-    # Resolver URs origen que confluyen en ur_codigo (fusiones 2026)
+    # Resolver URs que mapean a esta UR (fusiones 2026)
     mapeo_ur   = config.get('mapeo_ur', {})
     fusion_urs = config.get('fusion_urs', {})
     urs_propias = {ur_codigo, str(ur_codigo)}
@@ -262,16 +256,14 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         if str(ur_dest) == str(ur_codigo):
             urs_propias.add(str(ur_orig))
 
-    # ── Identificar partida 39801: usar columna Partida directa si existe ───────
-    # (construir _P multiplicando columnas da resultados incorrectos en algunos casos)
+    # Construir columna Partida para identificar cap1 y 39801
+    tiene_partida = False
     if 'CAPITULO' in df.columns:
         df['CAPITULO'] = pd.to_numeric(df['CAPITULO'], errors='coerce').fillna(0).astype(int)
     if 'Partida' in df.columns:
         df['Partida'] = pd.to_numeric(df['Partida'], errors='coerce').fillna(0).astype(int)
         tiene_partida = True
     elif 'PARTIDA_ESPECIFICA' in df.columns:
-        # Fórmula Excel: =VALOR(CONCATENAR(J,K,L,TEXTO(M,"0#")))
-        # PARTIDA_ESPECIFICA se formatea con 2 dígitos (zfill 2)
         for col_n in ['CONCEPTO', 'PARTIDA_GENERICA', 'PARTIDA_ESPECIFICA']:
             if col_n in df.columns:
                 df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0).astype(int)
@@ -282,16 +274,13 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
             df['PARTIDA_ESPECIFICA'].astype(str).str.zfill(2)
         ).astype(int)
         tiene_partida = True
-    else:
-        tiene_partida = False
 
-    # ── BLOQUE A: FF=1 + COP=10 ───────────────────────────────────────────────
+    # ── BLOQUE A: FF=1 + COP=10 ──────────────────────────────────────────────
     if tiene_ff:
         df_A = df[(df['FUENTE_FINANCIAMIENTO'] == 1) & (df['CONTROL_OPERATIVO'] == 10)]
     else:
         df_A = df[df['CONTROL_OPERATIVO'] == 10]
 
-    import streamlit as _st2; _st2.write(f"DEBUG A: ur={ur_codigo}, urs_propias={urs_propias}, df_A rows={len(df_A)}, df_A_ur rows={len(df_A_ur)}, tiene_partida={tiene_partida}, sum_sin_excluir={float(df_A_ur["EJERCIDO"].sum()):.2f}")
     df_A_ur = df_A[df_A['ID_UNIDAD'].isin(urs_propias)]
 
     if ur_codigo == '511':
@@ -306,15 +295,15 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         else:
             pago_A = float(df_A_ur['EJERCIDO'].sum())
 
-    # ── BLOQUE B: FF=6 + COP=0 ────────────────────────────────────────────────
+    # ── BLOQUE B: FF=6 + COP=0 ───────────────────────────────────────────────
     pago_B = 0.0
     if tiene_ff:
         df_B = df[(df['FUENTE_FINANCIAMIENTO'] == 6) & (df['CONTROL_OPERATIVO'] == 0)]
         pago_B = float(df_B[df_B['ID_UNIDAD'].isin(urs_propias)]['EJERCIDO'].sum())
 
     return {
-        'PagoCOP_00': round(pago_B, 2),   # FF=6+COP=0 (ramos administrativos)
-        'PagoCOP_10': round(pago_A, 2),   # FF=1+COP=10 (federales año anterior)
+        'PagoCOP_00': round(pago_B, 2),
+        'PagoCOP_10': round(pago_A, 2),
     }
 
 def calcular_cop_62_67_desde_sicop(df_original):
