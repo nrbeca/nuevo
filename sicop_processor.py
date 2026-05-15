@@ -64,24 +64,13 @@ def mapear_ur(id_unidad, config):
 
 def get_co_filter_for_ur(ur, config, for_original=False):
     """
-    Obtiene el filtro de Control Operativo según el tipo de UR.
-    
     Para ORIGINAL: siempre CO == 0
-    Para MODIFICADO y EJERCIDO:
-        - Sector Central y Oficinas: CO IN (0, 50, 51)
-        - Órganos Desconcentrados y Entidades Paraestatales: CO IN (0, 50)
+    Para MODIFICADO y EJERCIDO: todos los COPs excepto los que empiezan en 6
+    (62, 67, 68 — operaciones que no deben sumarse al ejercicio)
     """
     if for_original:
         return [0]
-    
-    if ur in config['entidades_paraestatales'] or ur == 'RJL':
-        return [0, 50]
-    elif ur in config['organos_desconcentrados']:
-        return [0, 50]
-    else:
-        # Sector Central y Oficinas
-        return [0, 50, 51]
-
+    return [0, 10, 40, 50, 51]
 
 def procesar_sicop(df, filename):
     """
@@ -138,9 +127,9 @@ def procesar_sicop(df, filename):
     urs_validas_str = [str(ur) for ur in urs_validas]
     df = df[df['Nueva UR'].isin(urs_validas_str)].copy()
     df = df[~df['Partida'].isin([39801, 39810])].copy()
-    df = df[~df['CAPITULO'].isin([1, 7])].copy()
-    # Filtro de CONTROL_OPERATIVO: incluir 0, 10, 40, 50, 51 pero EXCLUIR 62 y 67
-    df = df[df['CONTROL_OPERATIVO'].isin([0, 10, 40, 50, 51])].copy()
+    df = df[~df['CAPITULO'].isin([1])].copy()
+    # Excluir únicamente COPs que empiezan en 6 (62, 67, 68...)
+    df = df[~df['CONTROL_OPERATIVO'].between(60, 69)].copy()
     
     # Calcular por UR
     resultados_ur = {}
@@ -245,7 +234,7 @@ def procesar_sicop(df, filename):
     # Congelados
     df_para_congelados = df_para_congelados[df_para_congelados['Nueva UR'].astype(str).isin(urs_validas)]
     df_para_congelados = df_para_congelados[~df_para_congelados['Partida'].isin([39801, 39810])]
-    df_para_congelados = df_para_congelados[df_para_congelados['CAPITULO'] != 1]
+    df_para_congelados = df_para_congelados[~df_para_congelados['CAPITULO'].isin([1])]
     
     congelado_anual = calcular_congelado_anual(df_para_congelados)
     congelado_periodo = calcular_congelado_periodo(df_para_congelados, mes_archivo)
@@ -401,7 +390,7 @@ def procesar_sicop(df, filename):
     # =========================================================================
     df_cop = df_para_cop_62_67[df_para_cop_62_67['Nueva UR'].astype(str).isin(urs_validas)]
     df_cop = df_cop[~df_cop['Partida'].isin([39801, 39810])]
-    df_cop = df_cop[~df_cop['CAPITULO'].isin([1, 7])]
+    df_cop = df_cop[~df_cop['CAPITULO'].isin([1])]
     
     # COP 62
     df_cop62 = df_cop[df_cop['CONTROL_OPERATIVO'] == 62]
