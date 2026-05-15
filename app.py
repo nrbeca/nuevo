@@ -375,7 +375,7 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
                 df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0).astype(int)
 
         # Excluir cap 1 y partidas de nómina
-        df = df[df['CAPITULO'] != 1].copy()
+        df = df[~df['CAPITULO'].isin([1])].copy()
         df['Partida_full'] = (
             df['CAPITULO'] * 10000 +
             df['CONCEPTO'] * 1000 +
