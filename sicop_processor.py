@@ -302,7 +302,7 @@ def procesar_sicop(df, filename):
         co_filter = get_co_filter_for_ur(ur, config, for_original=False)
         
         # Filtrar para cálculos de modificado y ejercido
-        df_ur_filtered = df_ur[df_ur['CONTROL_OPERATIVO'].isin(co_filter)]
+       df_ur_filtered = df_ur[~df_ur['CONTROL_OPERATIVO'].between(60, 69)]
         
         # Calcular por capítulo (2, 3, 4)
         caps_ur = {}
