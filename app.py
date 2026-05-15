@@ -387,7 +387,7 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
         # Filtrar COP válidos
         if 'CONTROL_OPERATIVO' in df.columns:
             df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
-            df = df[df['CONTROL_OPERATIVO'].isin([0, 10, 40, 50, 51])]
+            df = df[~df['CONTROL_OPERATIVO'].between(60, 69)]
 
         for col_n in ['ORIGINAL', 'MODIFICADO_AUTORIZADO', 'EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
             if col_n in df.columns:
