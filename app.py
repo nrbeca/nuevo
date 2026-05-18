@@ -376,14 +376,14 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
 
         # Excluir cap 1 y partidas de nómina
         df = df[~df['CAPITULO'].isin([1])].copy()
-        df['Partida_full'] = (
-            df['CAPITULO'] * 10000 +
-            df['CONCEPTO'] * 1000 +
-            df['PARTIDA_GENERICA'] * 100 +
-            df['PARTIDA_ESPECIFICA'] * 10
-        ).astype(int)
-        df = df[~df['Partida_full'].isin([39801])]
-
+      # CORRECTO
+      df['Partida_full'] = df.apply(
+         lambda r: int(
+            str(int(r['CAPITULO'])) + str(int(r['CONCEPTO'])) +
+            str(int(r['PARTIDA_GENERICA'])) + f"{int(r['PARTIDA_ESPECIFICA']):02d}"
+        ), axis=1
+     )
+     df = df[~df['Partida_full'].isin([39801])]
         # Filtrar COP válidos
         if 'CONTROL_OPERATIVO' in df.columns:
             df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
