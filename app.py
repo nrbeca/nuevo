@@ -382,7 +382,7 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
             df['PARTIDA_GENERICA'] * 100 +
             df['PARTIDA_ESPECIFICA'] * 10
         ).astype(int)
-        df = df[~df['Partida_full'].isin([39801, 39810])]
+        df = df[~df['Partida_full'].isin([39801])]
 
         # Filtrar COP válidos
         if 'CONTROL_OPERATIVO' in df.columns:
