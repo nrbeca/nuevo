@@ -437,7 +437,7 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
             })
 
     except Exception as e:
-        st.caption(f"⚠️ Error calculando capítulos/partidas: {e}")
+        st.caption(f" Error calculando capítulos/partidas: {e}")
 
     return caps_ur, partidas_ur
 
@@ -467,7 +467,7 @@ with st.sidebar:
     else:
         st.warning(" SICOP: Sin datos")
     st.markdown("---")
-    if st.button("🚪 Cerrar sesión", use_container_width=True):
+    if st.button(" Cerrar sesión", use_container_width=True):
         st.session_state['autenticado'] = False
         st.rerun()
 
