@@ -206,7 +206,7 @@ def procesar_map(df, filename):
     }
 
     # ── Cálculos por UR para Dashboard Presupuesto ───────────────────────────
-    PARTIDAS_EXCLUIR = [39801, 39810]
+    PARTIDAS_EXCLUIR = [39801]
     df_dashboard = df[(df['Capitulo'] != 1000) & (~df['PARTIDA'].isin(PARTIDAS_EXCLUIR))].copy()
 
     resultados_por_ur = {}
