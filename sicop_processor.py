@@ -75,10 +75,13 @@ def procesar_sicop(df, filename):
     df['Nueva UR'] = df['ID_UNIDAD'].apply(lambda x: mapear_ur(x, config))
     df['Nueva UR'] = df['Nueva UR'].astype(str)
 
-    df['Partida'] = (
-        df['CAPITULO'] * 10000 + df['CONCEPTO'] * 1000 +
-        df['PARTIDA_GENERICA'] * 100 + df['PARTIDA_ESPECIFICA'] * 10
-    ).astype(int)
+    # CORRECTO — equivalente a CONCATENAR(J,K,L,TEXTO(M,"0#"))
+    df['Partida'] = df.apply(
+       lambda r: int(
+           str(int(r['CAPITULO'])) + str(int(r['CONCEPTO'])) +
+           str(int(r['PARTIDA_GENERICA'])) + f"{int(r['PARTIDA_ESPECIFICA']):02d}"
+       ), axis=1
+    )
 
     for col in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
         if col not in df.columns:
@@ -96,7 +99,7 @@ def procesar_sicop(df, filename):
 
     urs_validas_str = [str(ur) for ur in urs_validas]
     df = df[df['Nueva UR'].isin(urs_validas_str)].copy()
-    df = df[~df['Partida'].isin([39801, 39810])].copy()
+    df = df[~df['Partida'].isin([39801])].copy()
     df = df[~df['CAPITULO'].isin([1])].copy()
     # Excluir COPs que empiezan en 6 (62, 67, 68...)
     df = df[~df['CONTROL_OPERATIVO'].between(60, 69)].copy()
@@ -189,7 +192,7 @@ def procesar_sicop(df, filename):
 
     # Congelados
     df_para_congelados = df_para_congelados[df_para_congelados['Nueva UR'].astype(str).isin(urs_validas)]
-    df_para_congelados = df_para_congelados[~df_para_congelados['Partida'].isin([39801, 39810])]
+    df_para_congelados = df_para_congelados[~df_para_congelados['Partida'].isin([39801])]
     df_para_congelados = df_para_congelados[~df_para_congelados['CAPITULO'].isin([1])]
 
     congelado_anual = calcular_congelado_anual(df_para_congelados)
@@ -332,7 +335,7 @@ def procesar_sicop(df, filename):
     # COP 62, 67, 68 para la nota
     # =========================================================================
     df_cop = df_para_cop_62_67[df_para_cop_62_67['Nueva UR'].astype(str).isin(urs_validas)]
-    df_cop = df_cop[~df_cop['Partida'].isin([39801, 39810])]
+    df_cop = df_cop[~df_cop['Partida'].isin([39801])]
     df_cop = df_cop[~df_cop['CAPITULO'].isin([1])]
 
     df_cop62 = df_cop[df_cop['CONTROL_OPERATIVO'] == 62]
