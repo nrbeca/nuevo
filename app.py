@@ -219,16 +219,6 @@ def mostrar_estado_datos():
             st.markdown('<div class="data-status data-empty"> <strong>SICOP:</strong> Sin datos cargados</div>', unsafe_allow_html=True)
 
 def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
-    """
-    Calcula los pasivos pagados desde el DataFrame de SICOP diario.
-
-    BLOQUE A — FF=1 + COP=10: Pasivos federales año anterior.
-      - UR != 511: excluir cap 1 y partida 39801 (los paga la 511).
-      - UR 511: sus propios pagos + cap 1 y 39801 de todas las demás URs.
-
-    BLOQUE B — FF=6 + COP=0: Pasivos ramos administrativos.
-      - Sumar directo a cada UR sin exclusiones.
-    """
     if df_original is None or df_original.empty:
         return {'PagoCOP_00': 0, 'PagoCOP_10': 0}
 
@@ -245,7 +235,6 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     if tiene_ff:
         df['FUENTE_FINANCIAMIENTO'] = pd.to_numeric(df['FUENTE_FINANCIAMIENTO'], errors='coerce').fillna(0).astype(int)
 
-    # Resolver URs que mapean a esta UR (fusiones 2026)
     mapeo_ur   = config.get('mapeo_ur', {})
     fusion_urs = config.get('fusion_urs', {})
     urs_propias = {ur_codigo, str(ur_codigo)}
@@ -256,7 +245,6 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         if str(ur_dest) == str(ur_codigo):
             urs_propias.add(str(ur_orig))
 
-    # Construir columna Partida SIEMPRE desde columnas base (no usar Partida pre-existente)
     tiene_partida = False
     if 'CAPITULO' in df.columns:
         df['CAPITULO'] = pd.to_numeric(df['CAPITULO'], errors='coerce').fillna(0).astype(int)
@@ -272,7 +260,6 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         ).astype(int)
         tiene_partida = True
 
-    # ── BLOQUE A: FF=1 + COP=10 ──────────────────────────────────────────────
     if tiene_ff:
         df_A = df[(df['FUENTE_FINANCIAMIENTO'] == 1) & (df['CONTROL_OPERATIVO'] == 10)]
     else:
@@ -292,7 +279,6 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
         else:
             pago_A = float(df_A_ur['EJERCIDO'].sum())
 
-    # ── BLOQUE B: FF=6 + COP=0 ───────────────────────────────────────────────
     pago_B = 0.0
     if tiene_ff:
         df_B = df[(df['FUENTE_FINANCIAMIENTO'] == 6) & (df['CONTROL_OPERATIVO'] == 0)]
@@ -338,11 +324,6 @@ def calcular_cop_62_67_desde_sicop(df_original):
 
 
 def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
-    """
-    Calcula capítulos y top-partidas directamente desde df_original,
-    resolviendo fusiones de UR 2026.
-    Retorna (caps_ur dict, partidas_ur list).
-    """
     caps_ur = {}
     partidas_ur = []
 
@@ -353,7 +334,6 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
         df = df_original.copy()
         df['ID_UNIDAD'] = df['ID_UNIDAD'].astype(str)
 
-        # Construir set de URs originales que confluyen en ur_codigo
         urs_origen = {ur_codigo}
         for k, v in config.get('fusion_urs', {}).items():
             if v == ur_codigo:
@@ -369,16 +349,13 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
         if df.empty or 'CAPITULO' not in df.columns:
             return caps_ur, partidas_ur
 
-        # Limpiar tipos
         for col_n in ['CAPITULO', 'CONCEPTO', 'PARTIDA_GENERICA', 'PARTIDA_ESPECIFICA']:
             if col_n in df.columns:
                 df[col_n] = pd.to_numeric(df[col_n], errors='coerce').fillna(0).astype(int)
 
-        # Excluir cap 1 y partidas de nómina
         df = df[~df['CAPITULO'].isin([1])].copy()
         df['Partida_full'] = df.apply(lambda r: int(str(int(r['CAPITULO'])) + str(int(r['CONCEPTO'])) + str(int(r['PARTIDA_GENERICA'])) + f"{int(r['PARTIDA_ESPECIFICA']):02d}"), axis=1)
         df = df[~df['Partida_full'].isin([39801])]
-        # Filtrar COP válidos
         if 'CONTROL_OPERATIVO' in df.columns:
             df['CONTROL_OPERATIVO'] = pd.to_numeric(df['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
             df = df[~df['CONTROL_OPERATIVO'].between(60, 69)]
@@ -390,7 +367,6 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
         eje_cols = [c for c in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE'] if c in df.columns]
         df['_EJE'] = sum(df[c] for c in eje_cols) if eje_cols else 0
 
-        # ── Capítulos 2000, 3000, 4000 ──
         for cap_num in [2, 3, 4]:
             df_cap = df[df['CAPITULO'] == cap_num]
             mod_val = round(float(df_cap['MODIFICADO_AUTORIZADO'].sum()), 2) if 'MODIFICADO_AUTORIZADO' in df_cap.columns else 0
@@ -402,7 +378,6 @@ def calcular_caps_y_partidas_desde_raw(df_original, ur_codigo, config):
                 'Disponible': round(mod_val - eje_val, 2),
             }
 
-        # ── Top partidas con mayor disponible ──
         group_cols = ['Partida_full']
         if 'PROGRAMA_PRESUPUESTARIO' in df.columns:
             group_cols.append('PROGRAMA_PRESUPUESTARIO')
@@ -625,11 +600,9 @@ elif pagina == " Ver MAP":
         '% Avance': subtotal_subs['Ejercido'] / subtotal_subs['ModificadoPeriodoNeto'] * 100 if subtotal_subs['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
-    # Nota 3/ fija para programas SIN congelado.
-    # Programas CON congelado se numeran a partir del 3 de forma consecutiva.
-    NOTA_SIN_CONG = 3   # siempre "3/" para los sin congelado
+    NOTA_SIN_CONG = 3
     nota_por_prog = {}
-    contador_nota = 4   # los que tienen congelado empiezan en 4
+    contador_nota = 4
     for prog in programas_especificos:
         v_anual  = congelados.get('valores', {}).get(prog, 0)
         v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
@@ -637,29 +610,18 @@ elif pagina == " Ver MAP":
             nota_por_prog[prog] = contador_nota
             contador_nota += 1
         else:
-            nota_por_prog[prog] = NOTA_SIN_CONG  # "3/"
+            nota_por_prog[prog] = NOTA_SIN_CONG
 
-    # Si ningún programa tiene congelado, el contador sigue en 4;
-    # si alguno tiene, el contador ya avanzó. En cualquier caso:
-    nota_6 = contador_nota        # nota para "Otros programas"
-    nota_7 = contador_nota + 1    # nota para "Bienes muebles"
+    nota_6 = contador_nota
+    nota_7 = contador_nota + 1
 
     for prog in programas_especificos:
         nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
-        # Limpiar cualquier sufijo "N/" que venga hardcodeado desde config.py
         import re as _re
         nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-        v_anual  = congelados.get('valores', {}).get(prog, 0)
-        v_periodo = congelados.get('valores_periodo', {}).get(prog, 0)
-        tiene_cong = (v_anual > 0 or v_periodo > 0)
         n = nota_por_prog[prog]
-        # Programas sin congelado llevan "3/" al final del nombre
-        # Programas con congelado llevan su número dinámico
-        if tiene_cong:
-            concepto = f"{prog} - {nombre_base} {n}/"
-        else:
-            concepto = f"{prog} - {nombre_base} {n}/"
+        concepto = f"{prog} - {nombre_base} {n}/"
         cuadro_data.append({'Concepto': concepto, 'Original': d.get('Original', 0),
             'Mod. Anual': d.get('ModificadoAnualNeto', 0), 'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
             'Ejercido': d.get('Ejercido', 0), 'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
@@ -706,7 +668,6 @@ elif pagina == " Ver MAP":
     st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
     st.markdown("3/ Sin recursos congelados para este programa.")
-    # Notas para programas CON congelado (numeradas dinámicamente desde 4)
     for prog in programas_especificos:
         v_anual     = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
@@ -719,13 +680,10 @@ elif pagina == " Ver MAP":
                 nota += f" Y un monto al periodo de \\${v_periodo:,.2f} ({texto_periodo}), de recursos congelados."
             st.markdown(nota)
     st.markdown(f"{nota_6}/ Incluye diversos programas de carácter administrativo.")
-    # Nota de Bienes muebles
     bm_anual = congelados.get('bm_anual', 0)
     bm_anual_texto = congelados.get('bm_anual_texto', '')
     bm_periodo = congelados.get('bm_periodo', 0)
     bm_periodo_texto = congelados.get('bm_periodo_texto', '')
-    # Fallback: si el pickle fue generado antes de que se calculara bm_periodo,
-    # recalcularlo desde df_procesado
     if (bm_anual == 0 or bm_periodo == 0) and 'df_procesado' in resultados:
         try:
             df_proc = resultados['df_procesado']
@@ -889,35 +847,45 @@ elif pagina == " Ver SICOP":
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
 
-        cop_excluidos = resultados.get('cop_excluidos', {})
-        # Asegurar que los textos en letras estén siempre presentes
-        for cop_key in ('cop_62', 'cop_67'):
-            cop_d = cop_excluidos.get(cop_key, {})
-            if cop_d.get('monto', 0) > 0 and not cop_d.get('texto', ''):
-                cop_d['texto'] = numero_a_letras_mx(cop_d['monto'])
+        # ── NOTA 4: COP 62/67 — calculado SIEMPRE desde df_original (no depende del pickle) ──
+        try:
+            _df_cop = df_original.copy()
+            _df_cop['CONTROL_OPERATIVO'] = pd.to_numeric(_df_cop['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
+            for _c in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
+                if _c not in _df_cop.columns:
+                    _df_cop[_c] = 0
+                _df_cop[_c] = pd.to_numeric(_df_cop[_c], errors='coerce').fillna(0)
+            _df_cop['_EJE_REAL'] = _df_cop['EJERCIDO'] + _df_cop['DEVENGADO'] + _df_cop['EJERCIDO_TRAMITE']
+            if 'CAPITULO' in _df_cop.columns:
+                _df_cop = _df_cop[pd.to_numeric(_df_cop['CAPITULO'], errors='coerce').fillna(0) != 1]
+            _df62 = _df_cop[_df_cop['CONTROL_OPERATIVO'] == 62]
+            _monto62 = round(float(_df62['_EJE_REAL'].sum()), 2)
+            _urs62 = sorted(_df62['ID_UNIDAD'].astype(str).unique().tolist()) if not _df62.empty else []
+            _df67 = _df_cop[_df_cop['CONTROL_OPERATIVO'] == 67]
+            _monto67 = round(float(_df67['_EJE_REAL'].sum()), 2)
+            _urs67 = sorted(_df67['ID_UNIDAD'].astype(str).unique().tolist()) if not _df67.empty else []
+        except Exception:
+            _monto62, _urs62, _monto67, _urs67 = 0, [], 0, []
 
-        cop62 = cop_excluidos.get('cop_62', {'monto': 0, 'urs': [], 'texto': ''})
-        cop67 = cop_excluidos.get('cop_67', {'monto': 0, 'urs': [], 'texto': ''})
-
-        partes = []
-        if cop62.get('monto', 0) > 0:
-            urs_62 = ', '.join(str(u) for u in cop62.get('urs', ['120'])) if cop62.get('urs') else '120'
-            partes.append(
-                f"COP 62 la cantidad de \\${cop62['monto']:,.2f} "
-                f"({cop62.get('texto', numero_a_letras_mx(cop62['monto']))}) "
-                f"esto en la UR {urs_62}"
+        _partes = []
+        if _monto62 > 0:
+            _urs62_str = ', '.join(_urs62) if _urs62 else '120'
+            _partes.append(
+                f"COP 62 la cantidad de \\${_monto62:,.2f} "
+                f"({numero_a_letras_mx(_monto62)}) "
+                f"esto en la UR {_urs62_str}"
             )
-        if cop67.get('monto', 0) > 0:
-            urs_67 = ' y '.join(str(u) for u in cop67.get('urs', ['512', '513'])) if cop67.get('urs') else '512 y 513'
-            partes.append(
-                f"COP 67 la cantidad de \\${cop67['monto']:,.2f} "
-                f"({cop67.get('texto', numero_a_letras_mx(cop67['monto']))}) "
-                f"esto en las UR {urs_67}"
+        if _monto67 > 0:
+            _urs67_str = ' y '.join(_urs67) if _urs67 else '512 y 513'
+            _partes.append(
+                f"COP 67 la cantidad de \\${_monto67:,.2f} "
+                f"({numero_a_letras_mx(_monto67)}) "
+                f"esto en las UR {_urs67_str}"
             )
-        if partes:
+        if _partes:
             st.markdown(
                 "4/ No se están considerando montos de los Controles Operativos (COP): "
-                + "; y en ".join(partes) + "."
+                + "; y en ".join(_partes) + "."
             )
 
     # ========================================================================
@@ -1011,8 +979,8 @@ elif pagina == " Ver SICOP":
                 pasivos_ur_data = obtener_pasivos_ur(ur_codigo, usar_2026=config.get('usar_2026', True))
                 pasivos_shcp  = pasivos_ur_data.get('Pasivo', 0)
                 pasivos_cop   = calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config)
-                pago_ff1_cop10 = pasivos_cop.get('PagoCOP_10', 0)  # FF=1+COP=10 federales
-                pago_ff6_cop0  = pasivos_cop.get('PagoCOP_00', 0)  # FF=6+COP=0 ramos adm.
+                pago_ff1_cop10 = pasivos_cop.get('PagoCOP_10', 0)
+                pago_ff6_cop0  = pasivos_cop.get('PagoCOP_00', 0)
                 pago_cop_total = pago_ff1_cop10 + pago_ff6_cop0
 
                 st.markdown(
@@ -1050,18 +1018,12 @@ elif pagina == " Ver SICOP":
                     margin=dict(t=10, b=30, l=10, r=10), height=180)
                 st.plotly_chart(fig3, use_container_width=True, key="fig_sicop_pasivos")
 
-
-            # ----------------------------------------------------------------
-            # col_der: Capítulos y Top Partidas con fallback a cálculo directo
-            # ----------------------------------------------------------------
             with col_der:
                 st.markdown("#### Ejercido por Capítulo")
 
-                # Recuperar datos precalculados
                 caps_ur = capitulos_por_ur.get(ur_codigo, {})
                 partidas_ur = partidas_por_ur.get(ur_codigo, [])
 
-                # Si alguno está vacío, recalcular desde df_original
                 if not caps_ur or not partidas_ur:
                     caps_raw, partidas_raw = calcular_caps_y_partidas_desde_raw(
                         df_original, ur_codigo, config
@@ -1071,7 +1033,6 @@ elif pagina == " Ver SICOP":
                     if not partidas_ur:
                         partidas_ur = partidas_raw
 
-                # ── Tabla de capítulos ──
                 if caps_ur:
                     cap_data = []
                     for cap, cap_vals in sorted(caps_ur.items()):
@@ -1100,7 +1061,6 @@ elif pagina == " Ver SICOP":
                 else:
                     st.info("No hay datos por capítulo disponibles")
 
-                # ── Top partidas ──
                 st.markdown("#### Top Partidas con Mayor Disponible")
 
                 if partidas_ur:
@@ -1124,8 +1084,6 @@ elif pagina == " Ver SICOP":
 
         datos_sicop_aust = procesar_sicop_austeridad(df_original)
 
-        # Usar la misma lista de URs del config (ya fusionadas/mapeadas),
-        # igual que en el Dashboard Presupuesto
         urs_config = sorted([ur for ur in
             config.get('sector_central', []) + config.get('oficinas', []) +
             config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', [])])
