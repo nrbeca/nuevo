@@ -75,10 +75,14 @@ def procesar_sicop(df, filename):
     df['Nueva UR'] = df['ID_UNIDAD'].apply(lambda x: mapear_ur(x, config))
     df['Nueva UR'] = df['Nueva UR'].astype(str)
 
-    df['Partida'] = (
-        df['CAPITULO'] * 10000 + df['CONCEPTO'] * 1000 +
-        df['PARTIDA_GENERICA'] * 100 + df['PARTIDA_ESPECIFICA'] * 10
-    ).astype(int)
+    # CORRECTO — equivalente a CONCATENAR(J,K,L,TEXTO(M,"0#"))
+    df['Partida'] = df.apply(
+       lambda r: int(
+           str(int(r['CAPITULO'])) + str(int(r['CONCEPTO'])) +
+           str(int(r['PARTIDA_GENERICA'])) + f"{int(r['PARTIDA_ESPECIFICA']):02d}"
+       ), axis=1
+    )
+
     for col in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
         if col not in df.columns:
             df[col] = 0
