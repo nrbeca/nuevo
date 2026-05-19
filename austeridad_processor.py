@@ -85,13 +85,14 @@ def procesar_sicop_austeridad(df):
         df = df.copy()
         
         # Crear partida completa de 5 dígitos
-       # CORRECTO — consistente con sicop_processor.py
-    df['Partida'] = df.apply(
-        lambda r: int(
-           str(int(r['CAPITULO'])) + str(int(r['CONCEPTO'])) +
-           str(int(r['PARTIDA_GENERICA'])) + f"{int(r['PARTIDA_ESPECIFICA']):02d}"
-        ), axis=1
-    )
+     # Crear partida completa de 5 dígitos
+        df['Partida'] = (
+            df['CAPITULO'].astype(int) * 10000 +
+            df['CONCEPTO'].astype(int) * 1000 +
+            df['PARTIDA_GENERICA'].astype(int) * 100 +
+            df['PARTIDA_ESPECIFICA'].astype(int)
+        )
+        # Filtrar solo partidas de austeridad
         # Filtrar solo partidas de austeridad
         df = df[df['Partida'].isin(PARTIDAS_AUSTERIDAD)]
         
