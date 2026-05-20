@@ -741,14 +741,18 @@ elif pagina == " Ver SICOP":
     st.markdown(f'### Estado del ejercicio del 1 de enero al {formatear_fecha(date.today())} por Unidad Responsable de la Secretaría de Agricultura y Desarrollo Rural 1/')
 
     totales = resultados['totales']
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         st.markdown(create_kpi_card("Original", format_currency(totales['Original'])), unsafe_allow_html=True)
     with col2:
         st.markdown(create_kpi_card("Modificado Anual", format_currency(totales['Modificado_anual']), "", COLOR_VINO), unsafe_allow_html=True)
     with col3:
-        st.markdown(create_kpi_card("Ejercido", format_currency(totales['Ejercido_acumulado']), "", COLOR_NARANJA), unsafe_allow_html=True)
+        st.markdown(create_kpi_card("Modificado Periodo", format_currency(totales['Modificado_periodo']), "", COLOR_BEIGE), unsafe_allow_html=True)
     with col4:
+        st.markdown(create_kpi_card("Ejercido", format_currency(totales['Ejercido_acumulado']), "", COLOR_NARANJA), unsafe_allow_html=True)
+    with col5:
+        st.markdown(create_kpi_card("Disponible Periodo", format_currency(totales['Disponible_periodo']), "", COLOR_AZUL), unsafe_allow_html=True)
+    with col6:
         pct = totales['Pct_avance_periodo'] * 100 if totales['Pct_avance_periodo'] else 0
         st.markdown(create_kpi_card("Avance Periodo", f"{pct:.2f}%", "", COLOR_AZUL), unsafe_allow_html=True)
 
@@ -846,7 +850,6 @@ elif pagina == " Ver SICOP":
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
-        st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
 
         # ── NOTA 5: COP 62/67 — usa MODIFICADO_AUTORIZADO ──
         _df_tmp = df_original.copy()
