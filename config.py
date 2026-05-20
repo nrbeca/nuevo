@@ -261,6 +261,7 @@ DENOMINACIONES_2026 = {
     '220': 'Unidad de Bienestar para el Campo',
     '221': 'Dirección General de Fertilizantes para el Bienestar',
     '222': 'Dirección General de Producción para el Bienestar',
+    '233': 'Dirección General de Agregación de Valor y Comercialización',
     '250': 'Unidad de Operación Territorial y Eficiencia Hídrica Agroalimentaria',
     '252': 'Dirección General de Intervención Territorial Estratégica',
     '253': 'Dirección General de Eficacia Hídrica en Riego y Temporal',
@@ -331,7 +332,7 @@ DENOMINACIONES_2026 = {
 
 SECTOR_CENTRAL_2026 = ['100', '110', '106', '107', '111', '112', '117', '119', '120', '200',
                        '220', '221', '222', '250', '252', '253',
-                       '500', '510', '511', '512', '513',
+                       '233', '500', '510', '511', '512', '513',
                        '900', '910', '911', '912', '920', '921', '922', '923', '924']
 
 OFICINAS_2026 = ['260', '261', '262', '263', '264', '265', '266', '267', '268', '269',
