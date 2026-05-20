@@ -846,36 +846,35 @@ elif pagina == " Ver SICOP":
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
-        st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
-        # ── NOTA 5: COP 62/67 ──
-        _cop_data = calcular_cop_62_67_desde_sicop(df_original)
-        _cop62 = _cop_data.get('cop_62', {})
-        _cop67 = _cop_data.get('cop_67', {})
-        _monto62 = _cop62.get('monto', 0)
-        _monto67 = _cop67.get('monto', 0)
-        _urs62 = sorted([str(u) for u in _cop62.get('urs', [])]) if _cop62.get('urs') else []
-        _urs67 = sorted([str(u) for u in _cop67.get('urs', [])]) if _cop67.get('urs') else []
 
-        _partes_cop = []
-        if _monto62 > 0:
-            _urs62_str = ', '.join(_urs62) if _urs62 else 'N/D'
-            _partes_cop.append(
-                f"COP 62 la cantidad de \\${_monto62:,.2f} "
-                f"({numero_a_letras_mx(_monto62)}) "
-                f"esto en la UR {_urs62_str}"
-            )
-        if _monto67 > 0:
-            _urs67_str = ', '.join(_urs67) if _urs67 else 'N/D'
-            _partes_cop.append(
-                f"COP 67 la cantidad de \\${_monto67:,.2f} "
-                f"({numero_a_letras_mx(_monto67)}) "
-                f"esto en las UR {_urs67_str}"
-            )
-        if _partes_cop:
-            st.markdown(
-                "5/ No se están considerando montos de los Controles Operativos (COP): "
-                + "; y en ".join(_partes_cop) + "."
-            )
+        # ── NOTA 5: COP 62/67 — diagnóstico completo ──
+        st.markdown("---")
+        # Paso 1: ver columnas disponibles
+        _cols = list(df_original.columns)
+        st.caption(f"DEBUG cols: {_cols}")
+        # Paso 2: ver valores únicos de CONTROL_OPERATIVO
+        if 'CONTROL_OPERATIVO' in df_original.columns:
+            _cops = sorted(df_original['CONTROL_OPERATIVO'].astype(str).unique().tolist())
+            st.caption(f"DEBUG COPs únicos: {_cops}")
+            # Paso 3: filtrar COP 62 y 67
+            _df_tmp = df_original.copy()
+            _df_tmp['_COP'] = pd.to_numeric(_df_tmp['CONTROL_OPERATIVO'], errors='coerce').fillna(-1).astype(int)
+            _df62 = _df_tmp[_df_tmp['_COP'] == 62]
+            _df67 = _df_tmp[_df_tmp['_COP'] == 67]
+            st.caption(f"DEBUG filas COP62: {len(_df62)}, filas COP67: {len(_df67)}")
+            # Paso 4: columnas de ejercido disponibles
+            _eje_cols = [c for c in _df_tmp.columns if 'EJERC' in c.upper() or 'DEVENG' in c.upper() or 'TRAMIT' in c.upper()]
+            st.caption(f"DEBUG cols ejercido: {_eje_cols}")
+            if _eje_cols and len(_df62) > 0:
+                for _ec in _eje_cols:
+                    _df62[_ec] = pd.to_numeric(_df62[_ec], errors='coerce').fillna(0)
+                st.caption(f"DEBUG COP62 suma por col: { {c: round(float(_df62[c].sum()),2) for c in _eje_cols} }")
+            if _eje_cols and len(_df67) > 0:
+                for _ec in _eje_cols:
+                    _df67[_ec] = pd.to_numeric(_df67[_ec], errors='coerce').fillna(0)
+                st.caption(f"DEBUG COP67 suma por col: { {c: round(float(_df67[c].sum()),2) for c in _eje_cols} }")
+        else:
+            st.caption("DEBUG: columna CONTROL_OPERATIVO NO existe en df_original")
 
 
 
