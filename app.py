@@ -847,7 +847,6 @@ elif pagina == " Ver SICOP":
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
         st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
-        st.markdown("5/ No se están considerando montos de los Controles Operativos (COP): COP 62 la cantidad de $-- (--) esto en la UR ---; y en COP 67 la cantidad de $-- (--) esto en las UR ---")
         
         # ── NOTA 4: COP 62/67 — calculado SIEMPRE desde df_original (no depende del pickle) ──
         try:
