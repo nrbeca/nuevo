@@ -847,31 +847,39 @@ elif pagina == " Ver SICOP":
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
 
-        # ── NOTA 5: COP 62/67 — diagnóstico todas las columnas numéricas ──
-        st.markdown("---")
+        # ── NOTA 5: COP 62/67 — usa MODIFICADO_AUTORIZADO ──
         _df_tmp = df_original.copy()
         _df_tmp['_COP'] = pd.to_numeric(_df_tmp['CONTROL_OPERATIVO'], errors='coerce').fillna(-1).astype(int)
-        _df62 = _df_tmp[_df_tmp['_COP'] == 62].copy()
-        _df67 = _df_tmp[_df_tmp['_COP'] == 67].copy()
-        # Sumar todas las columnas numéricas y mostrar las que tienen valor > 0
-        _num_cols = [c for c in _df_tmp.columns if c not in ['ID_RAMO','ID_UNIDAD','AÑO','FINALIDAD','FUNCION','SUBFUNCION','REASIGNACION','ACTIV_INSTIT','PROGRAMA_PRESUPUESTARIO','CAPITULO','CONCEPTO','PARTIDA_GENERICA','PARTIDA_ESPECIFICA','TIPO_GASTO','FUENTE_FINANCIAMIENTO','ENTIDAD_FEDERATIVA','CLAVE_CARTERA','CENTRO_COSTO','CONTROL_OPERATIVO','PLURIANUAL','ORGANISMO_FINANCIADOR','AUX1','AUX2','AUX3','Nueva UR','Partida','_COP']]
-        _sumas62 = {}
-        _sumas67 = {}
-        for _c in _num_cols:
-            try:
-                _v62 = round(float(pd.to_numeric(_df62[_c], errors='coerce').fillna(0).sum()), 2)
-                _v67 = round(float(pd.to_numeric(_df67[_c], errors='coerce').fillna(0).sum()), 2)
-                if _v62 != 0:
-                    _sumas62[_c] = _v62
-                if _v67 != 0:
-                    _sumas67[_c] = _v67
-            except:
-                pass
-        st.caption(f"DEBUG COP62 cols con valor: {_sumas62}")
-        st.caption(f"DEBUG COP67 cols con valor: {_sumas67}")
-        # También mostrar URs
-        st.caption(f"DEBUG COP62 URs: {sorted(_df62['ID_UNIDAD'].astype(str).unique().tolist())}")
-        st.caption(f"DEBUG COP67 URs: {sorted(_df67['ID_UNIDAD'].astype(str).unique().tolist())}")
+        _df_tmp['MODIFICADO_AUTORIZADO'] = pd.to_numeric(_df_tmp['MODIFICADO_AUTORIZADO'], errors='coerce').fillna(0)
+
+        _df62 = _df_tmp[_df_tmp['_COP'] == 62]
+        _monto62 = round(float(_df62['MODIFICADO_AUTORIZADO'].sum()), 2)
+        _urs62 = sorted(_df62['ID_UNIDAD'].astype(str).unique().tolist()) if not _df62.empty else []
+
+        _df67 = _df_tmp[_df_tmp['_COP'] == 67]
+        _monto67 = round(float(_df67['MODIFICADO_AUTORIZADO'].sum()), 2)
+        _urs67 = sorted(_df67['ID_UNIDAD'].astype(str).unique().tolist()) if not _df67.empty else []
+
+        _partes_cop = []
+        if _monto62 > 0:
+            _urs62_str = ', '.join(_urs62) if _urs62 else 'N/D'
+            _partes_cop.append(
+                f"COP 62 la cantidad de ${_monto62:,.2f} "
+                f"({numero_a_letras_mx(_monto62)}) "
+                f"esto en la UR {_urs62_str}"
+            )
+        if _monto67 > 0:
+            _urs67_str = ', '.join(_urs67) if _urs67 else 'N/D'
+            _partes_cop.append(
+                f"COP 67 la cantidad de ${_monto67:,.2f} "
+                f"({numero_a_letras_mx(_monto67)}) "
+                f"esto en las UR {_urs67_str}"
+            )
+        if _partes_cop:
+            st.markdown(
+                "5/ No se están considerando montos de los Controles Operativos (COP): "
+                + "; y en ".join(_partes_cop) + "."
+            )
 
 
 
