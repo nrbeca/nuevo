@@ -847,34 +847,31 @@ elif pagina == " Ver SICOP":
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
 
-        # ── NOTA 5: COP 62/67 — diagnóstico completo ──
+        # ── NOTA 5: COP 62/67 — diagnóstico todas las columnas numéricas ──
         st.markdown("---")
-        # Paso 1: ver columnas disponibles
-        _cols = list(df_original.columns)
-        st.caption(f"DEBUG cols: {_cols}")
-        # Paso 2: ver valores únicos de CONTROL_OPERATIVO
-        if 'CONTROL_OPERATIVO' in df_original.columns:
-            _cops = sorted(df_original['CONTROL_OPERATIVO'].astype(str).unique().tolist())
-            st.caption(f"DEBUG COPs únicos: {_cops}")
-            # Paso 3: filtrar COP 62 y 67
-            _df_tmp = df_original.copy()
-            _df_tmp['_COP'] = pd.to_numeric(_df_tmp['CONTROL_OPERATIVO'], errors='coerce').fillna(-1).astype(int)
-            _df62 = _df_tmp[_df_tmp['_COP'] == 62]
-            _df67 = _df_tmp[_df_tmp['_COP'] == 67]
-            st.caption(f"DEBUG filas COP62: {len(_df62)}, filas COP67: {len(_df67)}")
-            # Paso 4: columnas de ejercido disponibles
-            _eje_cols = [c for c in _df_tmp.columns if 'EJERC' in c.upper() or 'DEVENG' in c.upper() or 'TRAMIT' in c.upper()]
-            st.caption(f"DEBUG cols ejercido: {_eje_cols}")
-            if _eje_cols and len(_df62) > 0:
-                for _ec in _eje_cols:
-                    _df62[_ec] = pd.to_numeric(_df62[_ec], errors='coerce').fillna(0)
-                st.caption(f"DEBUG COP62 suma por col: { {c: round(float(_df62[c].sum()),2) for c in _eje_cols} }")
-            if _eje_cols and len(_df67) > 0:
-                for _ec in _eje_cols:
-                    _df67[_ec] = pd.to_numeric(_df67[_ec], errors='coerce').fillna(0)
-                st.caption(f"DEBUG COP67 suma por col: { {c: round(float(_df67[c].sum()),2) for c in _eje_cols} }")
-        else:
-            st.caption("DEBUG: columna CONTROL_OPERATIVO NO existe en df_original")
+        _df_tmp = df_original.copy()
+        _df_tmp['_COP'] = pd.to_numeric(_df_tmp['CONTROL_OPERATIVO'], errors='coerce').fillna(-1).astype(int)
+        _df62 = _df_tmp[_df_tmp['_COP'] == 62].copy()
+        _df67 = _df_tmp[_df_tmp['_COP'] == 67].copy()
+        # Sumar todas las columnas numéricas y mostrar las que tienen valor > 0
+        _num_cols = [c for c in _df_tmp.columns if c not in ['ID_RAMO','ID_UNIDAD','AÑO','FINALIDAD','FUNCION','SUBFUNCION','REASIGNACION','ACTIV_INSTIT','PROGRAMA_PRESUPUESTARIO','CAPITULO','CONCEPTO','PARTIDA_GENERICA','PARTIDA_ESPECIFICA','TIPO_GASTO','FUENTE_FINANCIAMIENTO','ENTIDAD_FEDERATIVA','CLAVE_CARTERA','CENTRO_COSTO','CONTROL_OPERATIVO','PLURIANUAL','ORGANISMO_FINANCIADOR','AUX1','AUX2','AUX3','Nueva UR','Partida','_COP']]
+        _sumas62 = {}
+        _sumas67 = {}
+        for _c in _num_cols:
+            try:
+                _v62 = round(float(pd.to_numeric(_df62[_c], errors='coerce').fillna(0).sum()), 2)
+                _v67 = round(float(pd.to_numeric(_df67[_c], errors='coerce').fillna(0).sum()), 2)
+                if _v62 != 0:
+                    _sumas62[_c] = _v62
+                if _v67 != 0:
+                    _sumas67[_c] = _v67
+            except:
+                pass
+        st.caption(f"DEBUG COP62 cols con valor: {_sumas62}")
+        st.caption(f"DEBUG COP67 cols con valor: {_sumas67}")
+        # También mostrar URs
+        st.caption(f"DEBUG COP62 URs: {sorted(_df62['ID_UNIDAD'].astype(str).unique().tolist())}")
+        st.caption(f"DEBUG COP67 URs: {sorted(_df67['ID_UNIDAD'].astype(str).unique().tolist())}")
 
 
 
