@@ -67,9 +67,9 @@ def generar_excel_sicop(resultados):
 
     # ── Anchos de columna ────────────────────────────────────────────────────
     anchos = {
-        'A': 8.71, 'B': 106.57, 'C': 32.57, 'D': 32,
-        'E': 38,   'F': 35.29,  'G': 32,    'H': 31.29,
-        'I': 26,   'J': 25.43
+        'A': 12, 'B': 106.57, 'C': 32.57, 'D': 32,
+        'E': 38, 'F': 35.29,  'G': 32,    'H': 31.29,
+        'I': 26, 'J': 25.43
     }
     for col, ancho in anchos.items():
         ws.column_dimensions[col].width = ancho
@@ -223,13 +223,18 @@ def generar_excel_sicop(resultados):
     ultimo_habil = obtener_ultimo_dia_habil(hoy)
 
     def _nota(fila, texto, altura=35):
-        ws.merge_cells(f'A{fila}:J{fila}')
+        # Escribir sin merge para evitar conflictos con merged cells anteriores
         cell               = ws.cell(row=fila, column=1, value=texto)
         cell.font          = font_notes
         cell.fill          = fill_white
         cell.border        = border_none
-        cell.alignment     = align_left
+        cell.alignment     = Alignment(horizontal='left', vertical='top', wrap_text=True)
         ws.row_dimensions[fila].height = altura
+        # Limpiar celdas B-J de la misma fila
+        for c in range(2, 11):
+            ws.cell(row=fila, column=c).value = None
+            ws.cell(row=fila, column=c).fill  = fill_white
+            ws.cell(row=fila, column=c).border = border_none
         return fila + 1
 
     # Nota de fuente
