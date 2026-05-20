@@ -850,6 +850,7 @@ elif pagina == " Ver SICOP":
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
+        st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
 
         # ── NOTA 5: COP 62/67 — usa MODIFICADO_AUTORIZADO ──
         _df_tmp = df_original.copy()
