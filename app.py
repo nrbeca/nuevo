@@ -731,7 +731,7 @@ elif pagina == " Ver SICOP":
     with col_titulo:
         st.markdown("### Reporte SICOP - Estado del Ejercicio")
     with col_descarga:
-        excel_bytes = generar_excel_sicop(resultados)
+        excel_bytes = generar_excel_sicop(resultados, df_original=df_original)
         fecha_str = date.today().strftime("%d%b%Y").upper()
         st.download_button(label=" Descargar Excel", data=excel_bytes,
             file_name=f'Estado_Ejercicio_{fecha_str}.xlsx',
@@ -850,8 +850,7 @@ elif pagina == " Ver SICOP":
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
-        st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
-       
+
         # ── NOTA 5: COP 62/67 — usa MODIFICADO_AUTORIZADO ──
         _df_tmp = df_original.copy()
         _df_tmp['_COP'] = pd.to_numeric(_df_tmp['CONTROL_OPERATIVO'], errors='coerce').fillna(-1).astype(int)
