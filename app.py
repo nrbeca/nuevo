@@ -846,48 +846,38 @@ elif pagina == " Ver SICOP":
         cong_periodo = congelados_sicop.get('periodo', 0)
         texto_periodo = congelados_sicop.get('texto_periodo', '')
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
-        st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
-        
-        # ── NOTA 4: COP 62/67 — calculado SIEMPRE desde df_original (no depende del pickle) ──
-        try:
-            _df_cop = df_original.copy()
-            _df_cop['CONTROL_OPERATIVO'] = pd.to_numeric(_df_cop['CONTROL_OPERATIVO'], errors='coerce').fillna(0).astype(int)
-            for _c in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
-                if _c not in _df_cop.columns:
-                    _df_cop[_c] = 0
-                _df_cop[_c] = pd.to_numeric(_df_cop[_c], errors='coerce').fillna(0)
-            _df_cop['_EJE_REAL'] = _df_cop['EJERCIDO'] + _df_cop['DEVENGADO'] + _df_cop['EJERCIDO_TRAMITE']
-            if 'CAPITULO' in _df_cop.columns:
-                _df_cop = _df_cop[pd.to_numeric(_df_cop['CAPITULO'], errors='coerce').fillna(0) != 1]
-            _df62 = _df_cop[_df_cop['CONTROL_OPERATIVO'] == 62]
-            _monto62 = round(float(_df62['_EJE_REAL'].sum()), 2)
-            _urs62 = sorted(_df62['ID_UNIDAD'].astype(str).unique().tolist()) if not _df62.empty else []
-            _df67 = _df_cop[_df_cop['CONTROL_OPERATIVO'] == 67]
-            _monto67 = round(float(_df67['_EJE_REAL'].sum()), 2)
-            _urs67 = sorted(_df67['ID_UNIDAD'].astype(str).unique().tolist()) if not _df67.empty else []
-        except Exception:
-            _monto62, _urs62, _monto67, _urs67 = 0, [], 0, []
 
-        _partes = []
+        # ── NOTA 5: COP 62/67 ──
+        _cop_data = calcular_cop_62_67_desde_sicop(df_original)
+        _cop62 = _cop_data.get('cop_62', {})
+        _cop67 = _cop_data.get('cop_67', {})
+        _monto62 = _cop62.get('monto', 0)
+        _monto67 = _cop67.get('monto', 0)
+        _urs62 = sorted([str(u) for u in _cop62.get('urs', [])]) if _cop62.get('urs') else []
+        _urs67 = sorted([str(u) for u in _cop67.get('urs', [])]) if _cop67.get('urs') else []
+
+        _partes_cop = []
         if _monto62 > 0:
-            _urs62_str = ', '.join(_urs62) if _urs62 else '120'
-            _partes.append(
+            _urs62_str = ', '.join(_urs62) if _urs62 else 'N/D'
+            _partes_cop.append(
                 f"COP 62 la cantidad de \\${_monto62:,.2f} "
                 f"({numero_a_letras_mx(_monto62)}) "
                 f"esto en la UR {_urs62_str}"
             )
         if _monto67 > 0:
-            _urs67_str = ' y '.join(_urs67) if _urs67 else '512 y 513'
-            _partes.append(
+            _urs67_str = ', '.join(_urs67) if _urs67 else 'N/D'
+            _partes_cop.append(
                 f"COP 67 la cantidad de \\${_monto67:,.2f} "
                 f"({numero_a_letras_mx(_monto67)}) "
                 f"esto en las UR {_urs67_str}"
             )
-        if _partes:
+        if _partes_cop:
             st.markdown(
-                "4/ No se están considerando montos de los Controles Operativos (COP): "
-                + "; y en ".join(_partes) + "."
+                "5/ No se están considerando montos de los Controles Operativos (COP): "
+                + "; y en ".join(_partes_cop) + "."
             )
+
+
 
     # ========================================================================
     # TAB 2: Dashboard Presupuesto
