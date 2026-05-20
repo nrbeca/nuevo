@@ -54,11 +54,6 @@ def mapear_ur(id_unidad, config):
 
 
 def get_co_filter_for_ur(ur, config, for_original=False):
-    """
-    Para ORIGINAL: siempre CO == 0
-    Para MODIFICADO y EJERCIDO: todos los COPs excepto los que empiezan en 6
-    (62, 67, 68 son operaciones de traspaso que no deben sumarse al ejercicio)
-    """
     if for_original:
         return [0]
     return [0, 10, 40, 50, 51]
@@ -75,7 +70,6 @@ def procesar_sicop(df, filename):
     df['Nueva UR'] = df['ID_UNIDAD'].apply(lambda x: mapear_ur(x, config))
     df['Nueva UR'] = df['Nueva UR'].astype(str)
 
-    # CORRECTO — equivalente a CONCATENAR(J,K,L,TEXTO(M,"0#"))
     df['Partida'] = df.apply(
        lambda r: int(
            str(int(r['CAPITULO'])) + str(int(r['CONCEPTO'])) +
@@ -101,7 +95,6 @@ def procesar_sicop(df, filename):
     df = df[df['Nueva UR'].isin(urs_validas_str)].copy()
     df = df[~df['Partida'].isin([39801])].copy()
     df = df[~df['CAPITULO'].isin([1])].copy()
-    # Excluir COPs que empiezan en 6 (62, 67, 68...)
     df = df[~df['CONTROL_OPERATIVO'].between(60, 69)].copy()
 
     resultados_ur = {}
@@ -117,11 +110,9 @@ def procesar_sicop(df, filename):
 
         df_ur['Modificado_neto'] = df_ur['MODIFICADO_AUTORIZADO'] - df_ur['RESERVAS']
 
-        # ORIGINAL: CO=0
         df_co0 = df_ur[df_ur['CONTROL_OPERATIVO'] == 0]
         original = round_like_excel(df_co0['ORIGINAL'].sum(), 2)
 
-        # MODIFICADO y EJERCIDO: todos los COPs válidos (ya filtrados en df)
         df_modificado = df_ur
         modificado_anual = round_like_excel(df_modificado['Modificado_neto'].sum(), 2)
 
@@ -254,7 +245,6 @@ def procesar_sicop(df, filename):
             partidas_por_ur[ur] = []
             continue
 
-        # df ya tiene excluidos los COP 6x, no necesitamos filtrar de nuevo
         df_ur_filtered = df_ur
 
         caps_ur = {}
@@ -271,7 +261,6 @@ def procesar_sicop(df, filename):
                 }
                 continue
 
-            # Original: solo CO=0
             df_cap_orig = df_ur[df_ur['CAPITULO'] == cap]
             df_cap_orig = df_cap_orig[df_cap_orig['CONTROL_OPERATIVO'] == 0]
             original = round_like_excel(df_cap_orig['ORIGINAL'].sum(), 2)
@@ -332,19 +321,25 @@ def procesar_sicop(df, filename):
             partidas_por_ur[ur] = []
 
     # =========================================================================
-    # COP 62, 67, 68 para la nota
+    # COP 62 y 67 — usa MODIFICADO_AUTORIZADO (igual que la nota en app.py)
     # =========================================================================
     df_cop = df_para_cop_62_67[df_para_cop_62_67['Nueva UR'].astype(str).isin(urs_validas)]
     df_cop = df_cop[~df_cop['Partida'].isin([39801])]
     df_cop = df_cop[~df_cop['CAPITULO'].isin([1])]
 
-    df_cop62 = df_cop[df_cop['CONTROL_OPERATIVO'] == 62]
-    monto_cop62 = round_like_excel(df_cop62['EJERCIDO_REAL'].sum(), 2)
-    urs_cop62 = df_cop62['Nueva UR'].unique().tolist()
+    if 'MODIFICADO_AUTORIZADO' in df_cop.columns:
+        df_cop['MODIFICADO_AUTORIZADO'] = pd.to_numeric(df_cop['MODIFICADO_AUTORIZADO'], errors='coerce').fillna(0)
 
-    df_cop67 = df_cop[df_cop['CONTROL_OPERATIVO'] == 67]
-    monto_cop67 = round_like_excel(df_cop67['EJERCIDO_REAL'].sum(), 2)
-    urs_cop67 = df_cop67['Nueva UR'].unique().tolist()
+        df_cop62 = df_cop[df_cop['CONTROL_OPERATIVO'] == 62]
+        monto_cop62 = round_like_excel(df_cop62['MODIFICADO_AUTORIZADO'].sum(), 2)
+        urs_cop62 = sorted(df_cop62['Nueva UR'].unique().tolist()) if not df_cop62.empty else []
+
+        df_cop67 = df_cop[df_cop['CONTROL_OPERATIVO'] == 67]
+        monto_cop67 = round_like_excel(df_cop67['MODIFICADO_AUTORIZADO'].sum(), 2)
+        urs_cop67 = sorted(df_cop67['Nueva UR'].unique().tolist()) if not df_cop67.empty else []
+    else:
+        monto_cop62, urs_cop62 = 0, []
+        monto_cop67, urs_cop67 = 0, []
 
     return {
         'resumen': resumen,
