@@ -7,7 +7,7 @@ import numpy as np
 from datetime import date
 from config import (
     MONTH_NAMES, round_like_excel, detectar_fecha_archivo,
-    get_config_by_year, numero_a_letras_mx, PARTIDAS_ESPECIFICAS
+    get_config_by_year, numero_a_letras_mx
 )
 
 
@@ -191,9 +191,46 @@ def procesar_sicop(df, filename):
 
     # =========================================================================
     # CALCULOS POR UR PARA DASHBOARD PRESUPUESTO
-    # Usa PARTIDAS_ESPECIFICAS de config.py (catálogo completo con cientos
-    # de partidas) en lugar del catálogo local reducido anterior.
     # =========================================================================
+
+    catalogo_partidas = {
+        21101: 'Materiales y Útiles de Oficina',
+        21401: 'Materiales y Útiles Consumibles para el Procesamiento en Equipos y Bienes Informáticos',
+        21501: 'Material de Apoyo Informativo',
+        22102: 'Productos Alimenticios para Personas Derivado de la Prestación de Servicios Públicos',
+        22103: 'Productos Alimenticios para el Personal que Realiza Labores en Campo o de Supervisión',
+        22104: 'Productos Alimenticios para el Personal en las Instalaciones de las Dependencias y Entidades',
+        22106: 'Productos Alimenticios para el Personal Derivado de Actividades Extraordinarias',
+        22301: 'Utensilios para el Servicio de Alimentación',
+        26102: 'Combustibles, Lubricantes y Aditivos para Vehículos Destinados a Servicios Públicos',
+        26103: 'Combustibles, Lubricantes y Aditivos para Vehículos Destinados a Servicios Administrativos',
+        26104: 'Combustibles, Lubricantes y Aditivos para Vehículos Asignados a Servidores Públicos',
+        26105: 'Combustibles, Lubricantes y Aditivos para Maquinaria y Equipo de Producción',
+        31701: 'Servicios de Conducción de Señales Analógicas y Digitales',
+        33104: 'Otras Asesorías para la Operación de Programas',
+        33302: 'Servicios Estadísticos y Geográficos',
+        33401: 'Servicios para Capacitación a Servidores Públicos',
+        33602: 'Otros Servicios Comerciales',
+        33801: 'Servicios de Vigilancia',
+        33901: 'Subcontratación de Servicios con Terceros',
+        35101: 'Mantenimiento y Conservación de Inmuebles para la Prestación de Servicios Administrativos',
+        35201: 'Mantenimiento y Conservación de Mobiliario y Equipo de Administración',
+        35801: 'Servicios de Lavandería, Limpieza e Higiene',
+        35901: 'Servicios de Jardinería y Fumigación',
+        37101: 'Pasajes Aéreos Nacionales para Labores en Campo y de Supervisión',
+        37104: 'Pasajes Aéreos Nacionales para Servidores Públicos de Mando',
+        37106: 'Pasajes Aéreos Internacionales para Servidores Públicos',
+        37201: 'Pasajes Terrestres Nacionales para Labores en Campo y de Supervisión',
+        37204: 'Pasajes Terrestres Nacionales para Servidores Públicos de Mando',
+        37206: 'Pasajes Terrestres Internacionales para Servidores Públicos',
+        37501: 'Viáticos Nacionales para Labores en Campo y de Supervisión',
+        37504: 'Viáticos Nacionales para Servidores Públicos en el Desempeño de Funciones Oficiales',
+        37602: 'Viáticos en el Extranjero para Servidores Públicos',
+        37901: 'Cuotas para Congresos, Convenciones, Exposiciones, Seminarios y Similares',
+        38301: 'Congresos y Convenciones',
+        38401: 'Exposiciones',
+        38501: 'Gastos de Representación',
+    }
 
     catalogo_programas = config.get('programas_nombres', {})
 
@@ -253,6 +290,8 @@ def procesar_sicop(df, filename):
         capitulos_por_ur[ur] = caps_ur
 
         if not df_ur_filtered.empty:
+            # Calcular modificado al PERIODO para partidas
+            # usando las columnas mensuales MO{abrev} y RESERVA_{mes}
             cols_periodo = obtener_columnas_hasta_mes(mes_archivo)
             cols_mod_p = [c for c in cols_periodo['modificaciones'] if c in df_ur_filtered.columns]
             cols_res_p = [c for c in cols_periodo['reservas']        if c in df_ur_filtered.columns]
@@ -267,6 +306,7 @@ def procesar_sicop(df, filename):
             else:
                 df_urt['_res_periodo'] = df_urt['RESERVAS']
 
+            # Si es cierre de año anterior o diciembre, periodo = anual
             if es_cierre_año_anterior or mes_archivo == 12:
                 df_urt['_mod_neto_periodo'] = df_urt['MODIFICADO_AUTORIZADO'] - df_urt['RESERVAS']
             else:
@@ -288,11 +328,9 @@ def procesar_sicop(df, filename):
             for _, row in df_partidas.iterrows():
                 partida = int(row['Partida'])
                 programa = row['PROGRAMA_PRESUPUESTARIO']
-                # ── CORRECCIÓN: usar PARTIDAS_ESPECIFICAS (catálogo completo) ──
-                denominacion = PARTIDAS_ESPECIFICAS.get(partida, f'Partida {partida}')
                 partidas_list.append({
                     'Partida': partida,
-                    'Denominacion': denominacion,
+                    'Denominacion': catalogo_partidas.get(partida, f'Partida {partida}'),
                     'Programa': programa,
                     'Denom_Programa': catalogo_programas.get(programa, programa),
                     'Original': round_like_excel(row['ORIGINAL'], 2),
