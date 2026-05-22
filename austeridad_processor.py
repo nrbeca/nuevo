@@ -177,9 +177,9 @@ def calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago=0
     F = ejercido_real
     G = solicitud_pago
     
-    # Condición 1: F > C → Monto ejercido real mayor al presupuesto ejercido en 2024
+    # Condición 1: F > C → Monto ejercido real mayor al presupuesto ejercido en 2025
     if F > C and C > 0:
-        return "Monto ejercido real mayor al presupuesto ejercido en 2024."
+        return "Monto ejercido real mayor al presupuesto ejercido en 2025."
     
     # Condición 2: C = 0 y E > 0 → Solicitar dictamen antes de ejercer
     if C == 0 and E > 0:
@@ -187,7 +187,7 @@ def calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago=0
     
     # Condición 3: C = 0 y F > 0 → Monto ejercido real mayor
     if C == 0 and F > 0:
-        return "Monto ejercido real mayor al presupuesto ejercido en 2024."
+        return "Monto ejercido real mayor al presupuesto ejercido en 2025."
     
     # Condición 4: F + G > C → Solicitar dictamen antes de ejercer
     if (F + G) > C and C > 0:
@@ -199,7 +199,7 @@ def calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago=0
     
     # Condición 6: E > C y F < C → Solicitar dictamen antes de sobrepasar
     if E > C and F < C:
-        return "Solicitar dictamen antes de sobrepasar el monto ejercido en 2024."
+        return "Solicitar dictamen antes de sobrepasar el monto ejercido en 2025."
     
     # Default: Sin observaciones
     return "Sin observaciones."
