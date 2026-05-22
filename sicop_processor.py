@@ -290,16 +290,39 @@ def procesar_sicop(df, filename):
         capitulos_por_ur[ur] = caps_ur
 
         if not df_ur_filtered.empty:
-            df_partidas = df_ur_filtered.groupby(['Partida', 'PROGRAMA_PRESUPUESTARIO']).agg({
-                'ORIGINAL': 'sum',
-                'MODIFICADO_AUTORIZADO': 'sum',
-                'RESERVAS': 'sum',
-                'EJERCIDO_REAL': 'sum',
-            }).reset_index()
+            # Calcular modificado al PERIODO para partidas
+            # usando las columnas mensuales MO{abrev} y RESERVA_{mes}
+            cols_periodo = obtener_columnas_hasta_mes(mes_archivo)
+            cols_mod_p = [c for c in cols_periodo['modificaciones'] if c in df_ur_filtered.columns]
+            cols_res_p = [c for c in cols_periodo['reservas']        if c in df_ur_filtered.columns]
 
-            df_partidas['Modificado_neto'] = df_partidas['MODIFICADO_AUTORIZADO'] - df_partidas['RESERVAS']
-            df_partidas['Disponible'] = df_partidas['Modificado_neto'] - df_partidas['EJERCIDO_REAL']
-            df_partidas = df_partidas[df_partidas['Disponible'] > 0].sort_values('Disponible', ascending=False).head(5)
+            df_urt = df_ur_filtered.copy()
+            if cols_mod_p:
+                df_urt['_mod_periodo'] = df_urt[cols_mod_p].sum(axis=1)
+            else:
+                df_urt['_mod_periodo'] = df_urt['MODIFICADO_AUTORIZADO'] - df_urt['RESERVAS']
+            if cols_res_p:
+                df_urt['_res_periodo'] = df_urt[cols_res_p].sum(axis=1)
+            else:
+                df_urt['_res_periodo'] = df_urt['RESERVAS']
+
+            # Si es cierre de año anterior o diciembre, periodo = anual
+            if es_cierre_año_anterior or mes_archivo == 12:
+                df_urt['_mod_neto_periodo'] = df_urt['MODIFICADO_AUTORIZADO'] - df_urt['RESERVAS']
+            else:
+                df_urt['_mod_neto_periodo'] = df_urt['_mod_periodo'] - df_urt['_res_periodo']
+
+            df_partidas = df_urt.groupby(['Partida', 'PROGRAMA_PRESUPUESTARIO']).agg(
+                ORIGINAL=('ORIGINAL', 'sum'),
+                MODIFICADO_AUTORIZADO=('MODIFICADO_AUTORIZADO', 'sum'),
+                RESERVAS=('RESERVAS', 'sum'),
+                EJERCIDO_REAL=('EJERCIDO_REAL', 'sum'),
+                Modificado_periodo=('_mod_neto_periodo', 'sum'),
+            ).reset_index()
+
+            df_partidas['Modificado_anual'] = df_partidas['MODIFICADO_AUTORIZADO'] - df_partidas['RESERVAS']
+            df_partidas['Disponible_periodo'] = df_partidas['Modificado_periodo'] - df_partidas['EJERCIDO_REAL']
+            df_partidas = df_partidas[df_partidas['Disponible_periodo'] > 0].sort_values('Disponible_periodo', ascending=False).head(5)
 
             partidas_list = []
             for _, row in df_partidas.iterrows():
@@ -311,9 +334,9 @@ def procesar_sicop(df, filename):
                     'Programa': programa,
                     'Denom_Programa': catalogo_programas.get(programa, programa),
                     'Original': round_like_excel(row['ORIGINAL'], 2),
-                    'Modificado': round_like_excel(row['Modificado_neto'], 2),
+                    'Modificado': round_like_excel(row['Modificado_periodo'], 2),
                     'Ejercido': round_like_excel(row['EJERCIDO_REAL'], 2),
-                    'Disponible': round_like_excel(row['Disponible'], 2),
+                    'Disponible': round_like_excel(row['Disponible_periodo'], 2),
                 })
 
             partidas_por_ur[ur] = partidas_list
