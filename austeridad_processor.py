@@ -7,7 +7,7 @@ import numpy as np
 from datetime import date
 from config import (
     round_like_excel, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
-    CUENTA_PUBLICA_2025
+    CUENTA_PUBLICA_2025, FUSION_URS_2026, MAPEO_UR_2026_BASE
 )
 
 
@@ -27,15 +27,35 @@ def procesar_cuenta_publica(df):
     return resultado
 
 
+def _aplicar_mapeo_ur(id_unidad_str):
+    """
+    Aplica el mapeo base y las fusiones 2026 a una UR, igual que sicop_processor.
+    Convierte UR antiguas (225, 226, 230…) a las nuevas (900, 921, 920…).
+    """
+    id_str = id_unidad_str
+    # Mapeo base (numérico → nuevo código)
+    if id_str.isdigit():
+        id_int = int(id_str)
+        if id_int in MAPEO_UR_2026_BASE:
+            id_str = str(MAPEO_UR_2026_BASE[id_int])
+    elif id_unidad_str in MAPEO_UR_2026_BASE:
+        id_str = str(MAPEO_UR_2026_BASE[id_unidad_str])
+    # Fusión 2026
+    if id_str in FUSION_URS_2026:
+        id_str = FUSION_URS_2026[id_str]
+    return id_str
+
+
 def procesar_sicop_austeridad(df):
     """
     Procesa el archivo SICOP diario para obtener Original, Modificado y Ejercido Real
     para las partidas de austeridad.
 
-    Correcciones aplicadas:
+    Correcciones:
+    - Aplica mapeo y fusiones de URs 2026 (igual que sicop_processor)
     - Ejercido Real = EJERCIDO + DEVENGADO + EJERCIDO_TRAMITE
-    - Se excluyen filas con CONTROL_OPERATIVO entre 60 y 69
-    - ORIGINAL se toma solo de filas con CONTROL_OPERATIVO = 0
+    - Excluye CONTROL_OPERATIVO entre 60 y 69
+    - ORIGINAL solo desde filas con CONTROL_OPERATIVO = 0
     """
     if 'ID_UNIDAD' in df.columns and 'PARTIDA_ESPECIFICA' in df.columns:
         df = df.copy()
@@ -51,7 +71,7 @@ def procesar_sicop_austeridad(df):
         # Filtrar solo partidas de austeridad
         df = df[df['Partida'].isin(PARTIDAS_AUSTERIDAD)]
 
-        # Excluir controles operativos 60-69 (ajustes contables, igual que el procesador principal)
+        # Excluir controles operativos 60-69
         df = df[~df['CONTROL_OPERATIVO'].between(60, 69)]
 
         # Convertir columnas numéricas
@@ -61,41 +81,41 @@ def procesar_sicop_austeridad(df):
             else:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-        # CORRECCIÓN: Ejercido Real = EJERCIDO + DEVENGADO + EJERCIDO_TRAMITE
+        # Ejercido Real = suma de las tres columnas
         df['_EJERCIDO_REAL'] = df['EJERCIDO'] + df['DEVENGADO'] + df['EJERCIDO_TRAMITE']
 
-        # CORRECCIÓN: Original solo desde COP = 0
+        # Aplicar mapeo/fusión de URs 2026
+        df['Nueva_UR'] = df['ID_UNIDAD'].astype(str).apply(_aplicar_mapeo_ur)
+
+        # ORIGINAL: solo desde COP = 0
         df_orig = (
             df[df['CONTROL_OPERATIVO'] == 0]
-            .assign(Concatenacion=lambda x: x['ID_UNIDAD'].astype(str) + x['Partida'].astype(str))
-            .groupby('Concatenacion')['ORIGINAL']
+            .assign(Concat=lambda x: x['Nueva_UR'] + x['Partida'].astype(str))
+            .groupby('Concat')['ORIGINAL']
             .sum()
             .reset_index()
             .rename(columns={'ORIGINAL': '_ORIGINAL'})
         )
 
-        # Agrupar Modificado y Ejercido por UR + Partida
-        df['Concatenacion'] = df['ID_UNIDAD'].astype(str) + df['Partida'].astype(str)
-
-        grouped = df.groupby('Concatenacion').agg(
-            MODIFICADO_AUTORIZADO=('MODIFICADO_AUTORIZADO', 'sum'),
-            _EJERCIDO_REAL=('_EJERCIDO_REAL', 'sum'),
+        # Modificado y Ejercido: todos los COP (ya excluidos 60-69)
+        df['Concat'] = df['Nueva_UR'] + df['Partida'].astype(str)
+        grouped = df.groupby('Concat').agg(
+            MODIFICADO=('MODIFICADO_AUTORIZADO', 'sum'),
+            EJERCIDO=('_EJERCIDO_REAL', 'sum'),
         ).reset_index()
 
         # Unir ORIGINAL
-        grouped = grouped.merge(df_orig, on='Concatenacion', how='left')
+        grouped = grouped.merge(df_orig, on='Concat', how='left')
         grouped['_ORIGINAL'] = grouped['_ORIGINAL'].fillna(0)
 
-        # Construir resultado
         resultado = {}
         for _, row in grouped.iterrows():
-            concat = str(row['Concatenacion']).strip()
+            concat = str(row['Concat']).strip()
             resultado[concat] = {
-                'Original':    round_like_excel(row['_ORIGINAL'], 2),
-                'Modificado':  round_like_excel(row['MODIFICADO_AUTORIZADO'], 2),
-                'Ejercido':    round_like_excel(row['_EJERCIDO_REAL'], 2),
+                'Original':  round_like_excel(row['_ORIGINAL'], 2),
+                'Modificado': round_like_excel(row['MODIFICADO'], 2),
+                'Ejercido':  round_like_excel(row['EJERCIDO'], 2),
             }
-
         return resultado
 
     else:
@@ -103,9 +123,8 @@ def procesar_sicop_austeridad(df):
         if len(df.columns) >= 4:
             df.columns = ['Concatenación', 'Original', 'Modificado', 'Ejercido_Real']
         df = df[~df['Concatenación'].astype(str).str.contains('Etiqueta|Total|general', na=False, case=False)]
-        df['Original']     = pd.to_numeric(df['Original'],     errors='coerce').fillna(0)
-        df['Modificado']   = pd.to_numeric(df['Modificado'],   errors='coerce').fillna(0)
-        df['Ejercido_Real'] = pd.to_numeric(df['Ejercido_Real'], errors='coerce').fillna(0)
+        for col in ['Original', 'Modificado', 'Ejercido_Real']:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         resultado = {}
         for _, row in df.iterrows():
             concat = str(row['Concatenación']).strip()
@@ -118,11 +137,7 @@ def procesar_sicop_austeridad(df):
 
 
 def calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago=0):
-    C = ejercido_anterior
-    E = modificado
-    F = ejercido_real
-    G = solicitud_pago
-
+    C, E, F, G = ejercido_anterior, modificado, ejercido_real, solicitud_pago
     if F > C and C > 0:
         return "Monto ejercido real mayor al presupuesto ejercido en 2025."
     if C == 0 and E > 0:
@@ -139,9 +154,7 @@ def calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago=0
 
 
 def calcular_avance_anual(ejercido_anterior, ejercido_real, solicitud_pago=0):
-    C = ejercido_anterior
-    F = ejercido_real
-    G = solicitud_pago
+    C, F, G = ejercido_anterior, ejercido_real, solicitud_pago
     if C == 0 and (F > 0 or G > 0):
         return "Incremento en presupuesto"
     if C == 0:
@@ -152,23 +165,18 @@ def calcular_avance_anual(ejercido_anterior, ejercido_real, solicitud_pago=0):
 def generar_dashboard_austeridad(datos_cp, datos_sicop, ur_filtro):
     if datos_cp is None:
         datos_cp = CUENTA_PUBLICA_2025
-
     resultado = []
     for partida in PARTIDAS_AUSTERIDAD:
         concat_cp    = f"{partida}{ur_filtro}"
         concat_sicop = f"{ur_filtro}{partida}"
-
         ejercido_anterior = datos_cp.get(concat_cp, 0)
-
         sicop_data   = datos_sicop.get(concat_sicop, {'Original': 0, 'Modificado': 0, 'Ejercido': 0})
-        original     = sicop_data['Original']
-        modificado   = sicop_data['Modificado']
+        original      = sicop_data['Original']
+        modificado    = sicop_data['Modificado']
         ejercido_real = sicop_data['Ejercido']
         solicitud_pago = 0
-
         nota   = calcular_nota(ejercido_anterior, ejercido_real, modificado, solicitud_pago)
         avance = calcular_avance_anual(ejercido_anterior, ejercido_real, solicitud_pago)
-
         resultado.append({
             'Partida':           partida,
             'Denominacion':      DENOMINACIONES_AUSTERIDAD.get(partida, ''),
@@ -180,7 +188,6 @@ def generar_dashboard_austeridad(datos_cp, datos_sicop, ur_filtro):
             'Nota':              nota,
             'Avance_Anual':      avance,
         })
-
     return resultado
 
 
