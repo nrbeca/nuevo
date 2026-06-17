@@ -852,39 +852,24 @@ elif pagina == " Ver SICOP":
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
         st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
 
-        # ── NOTA 5: COP 62/67 — usa MODIFICADO_AUTORIZADO ──
         _df_tmp = df_original.copy()
         _df_tmp['_COP'] = pd.to_numeric(_df_tmp['CONTROL_OPERATIVO'], errors='coerce').fillna(-1).astype(int)
         _df_tmp['MODIFICADO_AUTORIZADO'] = pd.to_numeric(_df_tmp['MODIFICADO_AUTORIZADO'], errors='coerce').fillna(0)
-
         _df62 = _df_tmp[_df_tmp['_COP'] == 62]
         _monto62 = round(float(_df62['MODIFICADO_AUTORIZADO'].sum()), 2)
         _urs62 = sorted(_df62['ID_UNIDAD'].astype(str).unique().tolist()) if not _df62.empty else []
-
         _df67 = _df_tmp[_df_tmp['_COP'] == 67]
         _monto67 = round(float(_df67['MODIFICADO_AUTORIZADO'].sum()), 2)
         _urs67 = sorted(_df67['ID_UNIDAD'].astype(str).unique().tolist()) if not _df67.empty else []
-
         _partes_cop = []
         if _monto62 > 0:
             _urs62_str = ', '.join(_urs62) if _urs62 else 'N/D'
-            _partes_cop.append(
-                f"COP 62 la cantidad de ${_monto62:,.2f} "
-                f"({numero_a_letras_mx(_monto62)}) "
-                f"esto en la UR {_urs62_str}"
-            )
+            _partes_cop.append(f"COP 62 la cantidad de ${_monto62:,.2f} ({numero_a_letras_mx(_monto62)}) esto en la UR {_urs62_str}")
         if _monto67 > 0:
             _urs67_str = ', '.join(_urs67) if _urs67 else 'N/D'
-            _partes_cop.append(
-                f"COP 67 la cantidad de ${_monto67:,.2f} "
-                f"({numero_a_letras_mx(_monto67)}) "
-                f"esto en las UR {_urs67_str}"
-            )
+            _partes_cop.append(f"COP 67 la cantidad de ${_monto67:,.2f} ({numero_a_letras_mx(_monto67)}) esto en las UR {_urs67_str}")
         if _partes_cop:
-            st.markdown(
-                "5/ No se están considerando montos de los Controles Operativos (COP): "
-                + "; y en ".join(_partes_cop) + "."
-            )
+            st.markdown("5/ No se están considerando montos de los Controles Operativos (COP): " + "; y en ".join(_partes_cop) + ".")
 
     # ========================================================================
     # TAB 2: Dashboard Presupuesto
@@ -896,7 +881,6 @@ elif pagina == " Ver SICOP":
         partidas_por_ur = resultados.get('partidas_por_ur', {})
         resumen_df = resultados.get('resumen', pd.DataFrame())
 
-        # URs del config + URs legado (sin duplicados, ordenadas)
         urs_disponibles = sorted(list(set(
             config.get('sector_central', []) +
             config.get('oficinas', []) +
@@ -910,174 +894,184 @@ elif pagina == " Ver SICOP":
         ur_seleccionada = st.selectbox("Selecciona una Unidad Responsable:", options=urs_con_nombre, index=0, key="ur_dash_ppto")
         ur_codigo = ur_seleccionada.split(" - ")[0]
 
-        ur_rows = resumen_df[resumen_df['UR'] == ur_codigo] if not resumen_df.empty else pd.DataFrame()
+        # Obtener datos del resumen; si no hay (URs legado), usar serie vacía
+        resumen_filas = resumen_df[resumen_df['UR'] == ur_codigo] if not resumen_df.empty else pd.DataFrame()
 
-        if ur_rows.empty:
-            st.warning(f"No hay datos disponibles para la UR {ur_codigo}")
+        if resumen_filas.empty:
+            ur_data = pd.Series({
+                'Original': 0, 'Modificado_anual': 0, 'Modificado_periodo': 0,
+                'Ejercido_acumulado': 0, 'Disponible_anual': 0, 'Disponible_periodo': 0,
+                'Pct_avance_anual': 0, 'Pct_avance_periodo': 0
+            })
+            if ur_codigo in URS_LEGADO_2026:
+                st.info(f"UR {ur_codigo}: sin movimientos en el periodo actual en SICOP. Se muestran únicamente los pasivos registrados.")
+            else:
+                st.warning(f"No hay datos disponibles para la UR {ur_codigo}")
         else:
-            ur_data = ur_rows.iloc[0]
-            hoy = date.today()
-            meses_esp = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
-            st.markdown(f"### Estado del ejercicio del 1 de enero al {hoy.day} de {meses_esp[hoy.month-1]} de {hoy.year}")
-            ur_nombre_titulo = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
-            st.markdown(f"**{ur_codigo}.- {ur_nombre_titulo}**")
+            ur_data = resumen_filas.iloc[0]
 
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.markdown(create_kpi_card("Original", format_currency(ur_data.get('Original', 0))), unsafe_allow_html=True)
-            with c2:
-                st.markdown(create_kpi_card("Modificado Anual", format_currency(ur_data.get('Modificado_anual', 0)), "", COLOR_VINO), unsafe_allow_html=True)
-            with c3:
-                st.markdown(create_kpi_card("Modificado Periodo", format_currency(ur_data.get('Modificado_periodo', 0)), "", COLOR_BEIGE), unsafe_allow_html=True)
-            with c4:
-                st.markdown(create_kpi_card("Ejercido", format_currency(ur_data.get('Ejercido_acumulado', 0)), "", COLOR_NARANJA), unsafe_allow_html=True)
+        hoy = date.today()
+        meses_esp = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+        st.markdown(f"### Estado del ejercicio del 1 de enero al {hoy.day} de {meses_esp[hoy.month-1]} de {hoy.year}")
+        ur_nombre_titulo = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
+        st.markdown(f"**{ur_codigo}.- {ur_nombre_titulo}**")
 
-            st.markdown("<br>", unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(create_kpi_card("Original", format_currency(ur_data.get('Original', 0))), unsafe_allow_html=True)
+        with c2:
+            st.markdown(create_kpi_card("Modificado Anual", format_currency(ur_data.get('Modificado_anual', 0)), "", COLOR_VINO), unsafe_allow_html=True)
+        with c3:
+            st.markdown(create_kpi_card("Modificado Periodo", format_currency(ur_data.get('Modificado_periodo', 0)), "", COLOR_BEIGE), unsafe_allow_html=True)
+        with c4:
+            st.markdown(create_kpi_card("Ejercido", format_currency(ur_data.get('Ejercido_acumulado', 0)), "", COLOR_NARANJA), unsafe_allow_html=True)
 
-            c5, c6, c7, c8 = st.columns(4)
-            with c5:
-                st.markdown(create_kpi_card("Disponible Anual", format_currency(ur_data.get('Disponible_anual', 0)), "", COLOR_AZUL), unsafe_allow_html=True)
-            with c6:
-                st.markdown(create_kpi_card("Disponible Periodo", format_currency(ur_data.get('Disponible_periodo', 0)), "", COLOR_AZUL), unsafe_allow_html=True)
-            with c7:
-                pct_anual = ur_data.get('Pct_avance_anual', 0) * 100 if ur_data.get('Pct_avance_anual') else 0
-                st.markdown(create_kpi_card("% Avance Anual", f"{pct_anual:.2f}%", "", COLOR_GRIS), unsafe_allow_html=True)
-            with c8:
-                pct_periodo = ur_data.get('Pct_avance_periodo', 0) * 100 if ur_data.get('Pct_avance_periodo') else 0
-                st.markdown(create_kpi_card("% Avance Periodo", f"{pct_periodo:.2f}%", "", COLOR_GRIS), unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-            st.markdown("<br>", unsafe_allow_html=True)
+        c5, c6, c7, c8 = st.columns(4)
+        with c5:
+            st.markdown(create_kpi_card("Disponible Anual", format_currency(ur_data.get('Disponible_anual', 0)), "", COLOR_AZUL), unsafe_allow_html=True)
+        with c6:
+            st.markdown(create_kpi_card("Disponible Periodo", format_currency(ur_data.get('Disponible_periodo', 0)), "", COLOR_AZUL), unsafe_allow_html=True)
+        with c7:
+            pct_anual = ur_data.get('Pct_avance_anual', 0) * 100 if ur_data.get('Pct_avance_anual') else 0
+            st.markdown(create_kpi_card("% Avance Anual", f"{pct_anual:.2f}%", "", COLOR_GRIS), unsafe_allow_html=True)
+        with c8:
+            pct_periodo = ur_data.get('Pct_avance_periodo', 0) * 100 if ur_data.get('Pct_avance_periodo') else 0
+            st.markdown(create_kpi_card("% Avance Periodo", f"{pct_periodo:.2f}%", "", COLOR_GRIS), unsafe_allow_html=True)
 
-            col_izq, col_der = st.columns([1, 1])
+        st.markdown("<br>", unsafe_allow_html=True)
 
-            with col_izq:
-                cg1, cg2 = st.columns(2)
-                ejercido   = ur_data.get('Ejercido_acumulado', 0)
-                disp_anual = ur_data.get('Disponible_anual', 0)
-                disp_periodo = ur_data.get('Disponible_periodo', 0)
+        col_izq, col_der = st.columns([1, 1])
 
-                with cg1:
-                    st.markdown("**Avance ejercicio anual**")
-                    fig1 = go.Figure(go.Pie(values=[ejercido, max(0, disp_anual)],
-                        labels=['Ejercido','Disponible'], hole=0.6,
-                        marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
-                    fig1.add_annotation(text=f"{pct_anual:.2f}%", x=0.5, y=0.5,
-                        font_size=18, font_color=COLOR_VINO, showarrow=False)
-                    fig1.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
-                        margin=dict(t=10, b=30, l=10, r=10), height=200)
-                    st.plotly_chart(fig1, use_container_width=True, key="fig_sicop_anual")
+        with col_izq:
+            cg1, cg2 = st.columns(2)
+            ejercido     = ur_data.get('Ejercido_acumulado', 0)
+            disp_anual   = ur_data.get('Disponible_anual', 0)
+            disp_periodo = ur_data.get('Disponible_periodo', 0)
 
-                with cg2:
-                    st.markdown("**Avance ejercicio periodo**")
-                    fig2 = go.Figure(go.Pie(values=[ejercido, max(0, disp_periodo)],
-                        labels=['Ejercido','Disponible'], hole=0.6,
-                        marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
-                    fig2.add_annotation(text=f"{pct_periodo:.2f}%", x=0.5, y=0.5,
-                        font_size=18, font_color=COLOR_VINO, showarrow=False)
-                    fig2.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
-                        margin=dict(t=10, b=30, l=10, r=10), height=200)
-                    st.plotly_chart(fig2, use_container_width=True, key="fig_sicop_periodo")
+            with cg1:
+                st.markdown("**Avance ejercicio anual**")
+                fig1 = go.Figure(go.Pie(values=[ejercido, max(0, disp_anual)],
+                    labels=['Ejercido','Disponible'], hole=0.6,
+                    marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                fig1.add_annotation(text=f"{pct_anual:.2f}%", x=0.5, y=0.5,
+                    font_size=18, font_color=COLOR_VINO, showarrow=False)
+                fig1.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
+                    margin=dict(t=10, b=30, l=10, r=10), height=200)
+                st.plotly_chart(fig1, use_container_width=True, key="fig_sicop_anual")
 
-                st.markdown("#### Pasivos con cargo al presupuesto")
-                pasivos_ur_data = obtener_pasivos_ur(ur_codigo, usar_2026=config.get('usar_2026', True))
-                pasivos_shcp  = pasivos_ur_data.get('Pasivo', 0)
-                pasivos_cop   = calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config)
-                pago_ff1_cop10 = pasivos_cop.get('PagoCOP_10', 0)
-                pago_ff6_cop0  = pasivos_cop.get('PagoCOP_00', 0)
-                pago_cop_total = pago_ff1_cop10 + pago_ff6_cop0
+            with cg2:
+                st.markdown("**Avance ejercicio periodo**")
+                fig2 = go.Figure(go.Pie(values=[ejercido, max(0, disp_periodo)],
+                    labels=['Ejercido','Disponible'], hole=0.6,
+                    marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                fig2.add_annotation(text=f"{pct_periodo:.2f}%", x=0.5, y=0.5,
+                    font_size=18, font_color=COLOR_VINO, showarrow=False)
+                fig2.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
+                    margin=dict(t=10, b=30, l=10, r=10), height=200)
+                st.plotly_chart(fig2, use_container_width=True, key="fig_sicop_periodo")
 
-                st.markdown(
-                    f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;'
-                    f'text-align:center;margin-bottom:0.5rem;">'
-                    f'<div style="font-size:0.8rem;color:#666;">Pasivos reportados a la SHCP</div>'
-                    f'<div style="font-size:1.2rem;font-weight:bold;color:#9B2247;">{format_currency(pasivos_shcp)}</div>'
-                    f'</div>', unsafe_allow_html=True)
-                st.markdown(
-                    f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;'
-                    f'text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;">'
-                    f'<div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div>'
-                    f'<div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div>'
-                    f'<div style="font-size:0.8rem;color:#666;">Incluye FF 6 y COP 10</div>'
-                    f'</div>', unsafe_allow_html=True)
+            st.markdown("#### Pasivos con cargo al presupuesto")
+            pasivos_ur_data = obtener_pasivos_ur(ur_codigo, usar_2026=config.get('usar_2026', True))
+            pasivos_shcp   = pasivos_ur_data.get('Pasivo', 0)
+            pasivos_cop    = calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config)
+            pago_ff1_cop10 = pasivos_cop.get('PagoCOP_10', 0)
+            pago_ff6_cop0  = pasivos_cop.get('PagoCOP_00', 0)
+            pago_cop_total = pago_ff1_cop10 + pago_ff6_cop0
 
-                st.markdown("**Avance de pago de pasivos**")
-                if pasivos_shcp > 0 and pago_cop_total > 0:
-                    pct_p = min(pago_cop_total / pasivos_shcp, 1)
-                    fig3 = go.Figure(go.Pie(values=[pct_p, 1-pct_p], labels=['Pagado','Por pagar'],
-                        hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
-                    fig3.add_annotation(text=f"{pct_p*100:.2f}%", x=0.5, y=0.5,
-                        font_size=18, font_color=COLOR_VINO, showarrow=False)
-                elif pasivos_shcp > 0:
-                    fig3 = go.Figure(go.Pie(values=[0, 1], labels=['Pagado','Por pagar'],
-                        hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
-                    fig3.add_annotation(text="0.00%", x=0.5, y=0.5,
-                        font_size=18, font_color=COLOR_VINO, showarrow=False)
-                else:
-                    fig3 = go.Figure(go.Pie(values=[1], labels=['Sin pasivos'],
-                        hole=0.6, marker_colors=['#e0e0e0'], textinfo='none'))
-                    fig3.add_annotation(text="N/A", x=0.5, y=0.5,
-                        font_size=14, font_color='#999', showarrow=False)
-                fig3.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
-                    margin=dict(t=10, b=30, l=10, r=10), height=180)
-                st.plotly_chart(fig3, use_container_width=True, key="fig_sicop_pasivos")
+            st.markdown(
+                f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;'
+                f'text-align:center;margin-bottom:0.5rem;">'
+                f'<div style="font-size:0.8rem;color:#666;">Pasivos reportados a la SHCP</div>'
+                f'<div style="font-size:1.2rem;font-weight:bold;color:#9B2247;">{format_currency(pasivos_shcp)}</div>'
+                f'</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="border:1px solid #ddd;border-radius:8px;padding:1rem;'
+                f'text-align:center;margin-bottom:0.5rem;background-color:#f8f9fa;">'
+                f'<div style="font-size:0.8rem;color:#666;">Total Pasivos Pagados</div>'
+                f'<div style="font-size:1.2rem;font-weight:bold;color:#002F2A;">{format_currency(pago_cop_total)}</div>'
+                f'<div style="font-size:0.8rem;color:#666;">Incluye FF 6 y COP 10</div>'
+                f'</div>', unsafe_allow_html=True)
 
-            with col_der:
-                st.markdown("#### Ejercido por Capítulo")
+            st.markdown("**Avance de pago de pasivos**")
+            if pasivos_shcp > 0 and pago_cop_total > 0:
+                pct_p = min(pago_cop_total / pasivos_shcp, 1)
+                fig3 = go.Figure(go.Pie(values=[pct_p, 1-pct_p], labels=['Pagado','Por pagar'],
+                    hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                fig3.add_annotation(text=f"{pct_p*100:.2f}%", x=0.5, y=0.5,
+                    font_size=18, font_color=COLOR_VINO, showarrow=False)
+            elif pasivos_shcp > 0:
+                fig3 = go.Figure(go.Pie(values=[0, 1], labels=['Pagado','Por pagar'],
+                    hole=0.6, marker_colors=[COLOR_NARANJA, COLOR_AZUL], textinfo='none'))
+                fig3.add_annotation(text="0.00%", x=0.5, y=0.5,
+                    font_size=18, font_color=COLOR_VINO, showarrow=False)
+            else:
+                fig3 = go.Figure(go.Pie(values=[1], labels=['Sin pasivos'],
+                    hole=0.6, marker_colors=['#e0e0e0'], textinfo='none'))
+                fig3.add_annotation(text="N/A", x=0.5, y=0.5,
+                    font_size=14, font_color='#999', showarrow=False)
+            fig3.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.2),
+                margin=dict(t=10, b=30, l=10, r=10), height=180)
+            st.plotly_chart(fig3, use_container_width=True, key="fig_sicop_pasivos")
 
-                caps_ur = capitulos_por_ur.get(ur_codigo, {})
-                partidas_ur = partidas_por_ur.get(ur_codigo, [])
+        with col_der:
+            st.markdown("#### Ejercido por Capítulo")
 
-                if not caps_ur or not partidas_ur:
-                    caps_raw, partidas_raw = calcular_caps_y_partidas_desde_raw(
-                        df_original, ur_codigo, config
-                    )
-                    if not caps_ur:
-                        caps_ur = caps_raw
-                    if not partidas_ur:
-                        partidas_ur = partidas_raw
+            caps_ur    = capitulos_por_ur.get(ur_codigo, {})
+            partidas_ur = partidas_por_ur.get(ur_codigo, [])
 
-                if caps_ur:
-                    cap_data = []
-                    for cap, cap_vals in sorted(caps_ur.items()):
-                        cap_nombre = {
-                            '2': 'Cap. 2000 - Materiales y Suministros',
-                            '3': 'Cap. 3000 - Servicios Generales',
-                            '4': 'Cap. 4000 - Subsidios y Transferencias'
-                        }.get(str(cap), f'Cap. {cap}000')
-                        mod_val = cap_vals.get('Modificado_periodo', cap_vals.get('Modificado_anual', 0))
-                        eje_val = cap_vals.get('Ejercido', cap_vals.get('Ejercido_acumulado', 0))
-                        cap_data.append({
-                            'Capítulo': cap_nombre,
-                            'Original': cap_vals.get('Original', 0),
-                            'Modificado': mod_val,
-                            'Ejercido': eje_val,
-                            'Disponible': round(mod_val - eje_val, 2),
-                        })
-                    df_caps = pd.DataFrame(cap_data)
-                    st.dataframe(
-                        df_caps.style.format({
-                            'Original': '${:,.2f}', 'Modificado': '${:,.2f}',
-                            'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}',
-                        }),
-                        use_container_width=True, hide_index=True
-                    )
-                else:
-                    st.info("No hay datos por capítulo disponibles")
+            if not caps_ur or not partidas_ur:
+                caps_raw, partidas_raw = calcular_caps_y_partidas_desde_raw(
+                    df_original, ur_codigo, config
+                )
+                if not caps_ur:
+                    caps_ur = caps_raw
+                if not partidas_ur:
+                    partidas_ur = partidas_raw
 
-                st.markdown("#### Top Partidas con Mayor Disponible al Periodo")
+            if caps_ur:
+                cap_data = []
+                for cap, cap_vals in sorted(caps_ur.items()):
+                    cap_nombre = {
+                        '2': 'Cap. 2000 - Materiales y Suministros',
+                        '3': 'Cap. 3000 - Servicios Generales',
+                        '4': 'Cap. 4000 - Subsidios y Transferencias'
+                    }.get(str(cap), f'Cap. {cap}000')
+                    mod_val = cap_vals.get('Modificado_periodo', cap_vals.get('Modificado_anual', 0))
+                    eje_val = cap_vals.get('Ejercido', cap_vals.get('Ejercido_acumulado', 0))
+                    cap_data.append({
+                        'Capítulo': cap_nombre,
+                        'Original': cap_vals.get('Original', 0),
+                        'Modificado': mod_val,
+                        'Ejercido': eje_val,
+                        'Disponible': round(mod_val - eje_val, 2),
+                    })
+                df_caps = pd.DataFrame(cap_data)
+                st.dataframe(
+                    df_caps.style.format({
+                        'Original': '${:,.2f}', 'Modificado': '${:,.2f}',
+                        'Ejercido': '${:,.2f}', 'Disponible': '${:,.2f}',
+                    }),
+                    use_container_width=True, hide_index=True
+                )
+            else:
+                st.info("No hay datos por capítulo disponibles")
 
-                if partidas_ur:
-                    df_partidas = pd.DataFrame(partidas_ur)
-                    cols_mostrar = ['Partida', 'Denominacion', 'Programa', 'Original', 'Modificado', 'Ejercido', 'Disponible']
-                    cols_existentes = [c for c in cols_mostrar if c in df_partidas.columns]
-                    df_partidas_display = df_partidas[cols_existentes].copy()
-                    fmt_cols = {c: '${:,.2f}' for c in ['Original', 'Modificado', 'Ejercido', 'Disponible'] if c in cols_existentes}
-                    st.dataframe(
-                        df_partidas_display.style.format(fmt_cols),
-                        use_container_width=True, hide_index=True, height=400
-                    )
-                else:
-                    st.info("No hay datos de partidas disponibles")
+            st.markdown("#### Top Partidas con Mayor Disponible al Periodo")
+
+            if partidas_ur:
+                df_partidas = pd.DataFrame(partidas_ur)
+                cols_mostrar = ['Partida', 'Denominacion', 'Programa', 'Original', 'Modificado', 'Ejercido', 'Disponible']
+                cols_existentes = [c for c in cols_mostrar if c in df_partidas.columns]
+                df_partidas_display = df_partidas[cols_existentes].copy()
+                fmt_cols = {c: '${:,.2f}' for c in ['Original', 'Modificado', 'Ejercido', 'Disponible'] if c in cols_existentes}
+                st.dataframe(
+                    df_partidas_display.style.format(fmt_cols),
+                    use_container_width=True, hide_index=True, height=400
+                )
+            else:
+                st.info("No hay datos de partidas disponibles")
 
     # ========================================================================
     # TAB 3: Dashboard Austeridad
@@ -1087,7 +1081,6 @@ elif pagina == " Ver SICOP":
 
         datos_sicop_aust = procesar_sicop_austeridad(df_original)
 
-        # URs del config + URs legado (sin duplicados, ordenadas)
         urs_config = sorted(list(set(
             config.get('sector_central', []) +
             config.get('oficinas', []) +
@@ -1104,10 +1097,10 @@ elif pagina == " Ver SICOP":
 
         datos_dashboard = generar_dashboard_austeridad_desde_sicop(datos_sicop_aust, ur_codigo)
 
-        año_actual = date.today().year
+        año_actual  = date.today().year
         año_anterior = año_actual - 1
-        hoy_aust = date.today()
-        mes_nombre = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy_aust.month-1]
+        hoy_aust    = date.today()
+        mes_nombre  = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy_aust.month-1]
 
         st.markdown(f"#### Estado del ejercicio del 1 de enero al {hoy_aust.day} de {mes_nombre} de {año_actual}")
         st.markdown(f"**{ur_codigo}.- {ur_nombre}**")
