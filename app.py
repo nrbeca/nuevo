@@ -1088,7 +1088,8 @@ elif pagina == " Ver SICOP":
 
         urs_config = sorted([ur for ur in
             config.get('sector_central', []) + config.get('oficinas', []) +
-            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', []) 
+            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', []), []) +
+    URS_LEGADO_2026])
                              
         opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
 
