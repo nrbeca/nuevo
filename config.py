@@ -248,6 +248,14 @@ MAPEO_UR_2025 = {
 # ============================================================================
 
 DENOMINACIONES_2026 = {
+    # En DENOMINACIONES_2026, agregar:
+    '212': 'Dirección General de Organización para la Productividad',
+    '214': 'Dirección General de la Autosuficiencia Alimentaria',
+    '240': 'Coordinación General de Innovación y Transición Agroecológica',
+    '242': 'Dirección General de Transición Agroecológica',
+    '410': 'Dirección General de Fortalecimiento a la Agricultura Familiar',
+    '411': 'Dirección General de Integración Económica',
+    '413': 'Dirección General de Investigación, Desarrollo Tecnológico y Extensionismo',
     '100': 'Secretaría',
     '110': 'Unidad de Asuntos Jurídicos',
     '106': 'Coordinación de Legislación y Consulta',
@@ -1088,6 +1096,11 @@ UR_NOMBRES = {
     'IZI': 'PRONABIVE',
     'JAG': 'SEGALMEX',
     'RJL': 'Fideicomisos Instituidos',
+# ============================================================================
+# URs LEGADO 2026 — ya no están en el organigrama vigente pero aún
+# ejercen recursos y tienen pasivos pendientes
+# ============================================================================
+URS_LEGADO_2026 = ['212', '214', '240', '242', '410', '411', '413']
 }
 # ============================================================================
 # CUENTA PÚBLICA 2025 - EJERCIDO CON INFLACIÓN
