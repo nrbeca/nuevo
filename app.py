@@ -15,7 +15,7 @@ import os
 import pickle
 
 from config import (
-    MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
+    MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil,
     get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
     DENOMINACIONES_2026, numero_a_letras_mx, URS_LEGADO_2026
 )
@@ -886,8 +886,6 @@ elif pagina == " Ver SICOP":
                 + "; y en ".join(_partes_cop) + "."
             )
 
-
-
     # ========================================================================
     # TAB 2: Dashboard Presupuesto
     # ========================================================================
@@ -898,11 +896,14 @@ elif pagina == " Ver SICOP":
         partidas_por_ur = resultados.get('partidas_por_ur', {})
         resumen_df = resultados.get('resumen', pd.DataFrame())
 
-
-        urs_disponibles = sorted([ur for ur in
-            config.get('sector_central', []) + config.get('oficinas', []) +
-            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', []) +
-            URS_LEGADO_2026])
+        # URs del config + URs legado (sin duplicados, ordenadas)
+        urs_disponibles = sorted(list(set(
+            config.get('sector_central', []) +
+            config.get('oficinas', []) +
+            config.get('organos_desconcentrados', []) +
+            config.get('entidades_paraestatales', []) +
+            URS_LEGADO_2026
+        )))
 
         urs_con_nombre = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_disponibles]
 
@@ -1086,11 +1087,15 @@ elif pagina == " Ver SICOP":
 
         datos_sicop_aust = procesar_sicop_austeridad(df_original)
 
-        urs_config = sorted([ur for ur in
-            config.get('sector_central', []) + config.get('oficinas', []) +
-            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', []), []) +
-    URS_LEGADO_2026])
-                             
+        # URs del config + URs legado (sin duplicados, ordenadas)
+        urs_config = sorted(list(set(
+            config.get('sector_central', []) +
+            config.get('oficinas', []) +
+            config.get('organos_desconcentrados', []) +
+            config.get('entidades_paraestatales', []) +
+            URS_LEGADO_2026
+        )))
+
         opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
 
         ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
