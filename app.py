@@ -17,7 +17,7 @@ import pickle
 from config import (
     MONTH_NAMES_FULL, formatear_fecha, obtener_ultimo_dia_habil, 
     get_config_by_year, UR_NOMBRES, PARTIDAS_AUSTERIDAD, DENOMINACIONES_AUSTERIDAD,
-    DENOMINACIONES_2026, numero_a_letras_mx
+    DENOMINACIONES_2026, numero_a_letras_mx, URS_LEGADO_2026
 )
 
 # Importar PASIVOS si existen (opcional)
