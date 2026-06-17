@@ -898,7 +898,6 @@ elif pagina == " Ver SICOP":
         partidas_por_ur = resultados.get('partidas_por_ur', {})
         resumen_df = resultados.get('resumen', pd.DataFrame())
 
-        from config import URS_LEGADO_2026
 
         urs_disponibles = sorted([ur for ur in
             config.get('sector_central', []) + config.get('oficinas', []) +
@@ -1089,9 +1088,8 @@ elif pagina == " Ver SICOP":
 
         urs_config = sorted([ur for ur in
             config.get('sector_central', []) + config.get('oficinas', []) +
-            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', []) +
-            URS_LEGADO_2026])
-
+            config.get('organos_desconcentrados', []) + config.get('entidades_paraestatales', []) 
+                             
         opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
 
         ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
