@@ -158,12 +158,14 @@ def procesar_map(df, filename):
     if_cong_anual, if_cong_periodo = calcular_congelado_por_capitulos(df, [7000], PROGRAMAS_ESPECIFICOS)
 
     # ── Tablas dinámicas ─────────────────────────────────────────────────────
-    pivot_cap1000 = crear_pivot_suma(
-        df, lambda d: (d['Capitulo'] == 1000) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
-    )
-    pivot_cap2000_3000 = crear_pivot_suma(
-        df, lambda d: (d['Capitulo'].isin([2000, 3000])) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
-    )
+    # Servicios personales (1000) y Gasto corriente (2000+3000) ahora muestran el
+    # total institucional completo, incluyendo lo que aportan los programas
+    # específicos (antes se excluía porque ya se contaba en la fila de cada
+    # programa). Esas filas de programa NO cambian: siguen mostrando su propio
+    # total completo (incluidos sus capítulos 1000/2000/3000), por lo que el
+    # monto de esos programas ahora aparece en dos filas a la vez a propósito.
+    pivot_cap1000 = crear_pivot_suma(df, lambda d: d['Capitulo'] == 1000)
+    pivot_cap2000_3000 = crear_pivot_suma(df, lambda d: d['Capitulo'].isin([2000, 3000]))
 
     pivot_programas = {}
     for prog in PROGRAMAS_ESPECIFICOS:
@@ -190,24 +192,11 @@ def procesar_map(df, filename):
         'Ejercido':              sum(pivot_programas[p]['Ejercido']              for p in PROGRAMAS_ESPECIFICOS),
     }
 
-    totales = {
-        'Original': (pivot_cap1000['Original'] + pivot_cap2000_3000['Original'] +
-                     subtotal_subsidios['Original'] +
-                     pivot_cap4000['Original'] + pivot_cap5000['Original'] +
-                     pivot_cap6000['Original'] + pivot_cap7000['Original']),
-        'ModificadoAnualNeto': (pivot_cap1000['ModificadoAnualNeto'] + pivot_cap2000_3000['ModificadoAnualNeto'] +
-                                subtotal_subsidios['ModificadoAnualNeto'] +
-                                pivot_cap4000['ModificadoAnualNeto'] + pivot_cap5000['ModificadoAnualNeto'] +
-                                pivot_cap6000['ModificadoAnualNeto'] + pivot_cap7000['ModificadoAnualNeto']),
-        'ModificadoPeriodoNeto': (pivot_cap1000['ModificadoPeriodoNeto'] + pivot_cap2000_3000['ModificadoPeriodoNeto'] +
-                                  subtotal_subsidios['ModificadoPeriodoNeto'] +
-                                  pivot_cap4000['ModificadoPeriodoNeto'] + pivot_cap5000['ModificadoPeriodoNeto'] +
-                                  pivot_cap6000['ModificadoPeriodoNeto'] + pivot_cap7000['ModificadoPeriodoNeto']),
-        'Ejercido': (pivot_cap1000['Ejercido'] + pivot_cap2000_3000['Ejercido'] +
-                     subtotal_subsidios['Ejercido'] +
-                     pivot_cap4000['Ejercido'] + pivot_cap5000['Ejercido'] +
-                     pivot_cap6000['Ejercido'] + pivot_cap7000['Ejercido']),
-    }
+    # Totales: se calcula directo sobre TODO el archivo (sin importar capítulo
+    # ni programa), no como suma de las filas visibles. Así, aunque un programa
+    # específico ahora aparezca tanto en su propia fila como dentro de
+    # Servicios personales/Gasto corriente, el Total nunca lo cuenta dos veces.
+    totales = crear_pivot_suma(df, lambda d: pd.Series(True, index=d.index))
 
     categorias = {
         'servicios_personales':   pivot_cap1000,
