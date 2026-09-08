@@ -49,20 +49,20 @@ def calcular_congelado_periodo_programa(df, programa):
     return round_like_excel(df_programa['CongeladoPeriodo'].sum(), 2)
 
 
-def calcular_congelado_bienes_muebles(df, programas_especificos):
+def calcular_congelado_por_capitulos(df, capitulos, programas_especificos):
     """
-    Calcula el congelado anual y al periodo de Bienes Muebles (caps 5000 y 7000),
-    excluyendo los programas específicos (igual que el pivot_cap5000_7000).
+    Calcula el congelado anual y al periodo para uno o varios capítulos de gasto,
+    excluyendo los programas específicos.
     Retorna (congelado_anual, congelado_periodo).
     """
-    df_bm = df[
-        df['Capitulo'].isin([5000, 7000]) &
+    df_cap = df[
+        df['Capitulo'].isin(capitulos) &
         (~df['Pp'].isin(programas_especificos))
     ]
-    if df_bm.empty:
+    if df_cap.empty:
         return 0, 0
-    anual   = round_like_excel(df_bm['CongeladoAnual'].sum(), 2)
-    periodo = round_like_excel(df_bm['CongeladoPeriodo'].sum(), 2)
+    anual   = round_like_excel(df_cap['CongeladoAnual'].sum(), 2)
+    periodo = round_like_excel(df_cap['CongeladoPeriodo'].sum(), 2)
     return anual, periodo
 
 
@@ -152,8 +152,10 @@ def procesar_map(df, filename):
         congelados_valores_periodo[prog]  = valor_periodo
         congelados_textos_periodo[prog]   = numero_a_letras_mx(valor_periodo)
 
-    # ── Congelados de Bienes Muebles (cap 5000+7000) ─────────────────────────
-    bm_cong_anual, bm_cong_periodo = calcular_congelado_bienes_muebles(df, PROGRAMAS_ESPECIFICOS)
+    # ── Congelados por capítulo (5000, 6000 y 7000 por separado) ─────────────
+    bm_cong_anual, bm_cong_periodo = calcular_congelado_por_capitulos(df, [5000], PROGRAMAS_ESPECIFICOS)
+    ip_cong_anual, ip_cong_periodo = calcular_congelado_por_capitulos(df, [6000], PROGRAMAS_ESPECIFICOS)
+    if_cong_anual, if_cong_periodo = calcular_congelado_por_capitulos(df, [7000], PROGRAMAS_ESPECIFICOS)
 
     # ── Tablas dinámicas ─────────────────────────────────────────────────────
     pivot_cap1000 = crear_pivot_suma(
@@ -170,8 +172,14 @@ def procesar_map(df, filename):
     pivot_cap4000 = crear_pivot_suma(
         df, lambda d: (d['Capitulo'] == 4000) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
     )
-    pivot_cap5000_7000 = crear_pivot_suma(
-        df, lambda d: (d['Capitulo'].isin([5000, 7000])) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
+    pivot_cap5000 = crear_pivot_suma(
+        df, lambda d: (d['Capitulo'] == 5000) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
+    )
+    pivot_cap6000 = crear_pivot_suma(
+        df, lambda d: (d['Capitulo'] == 6000) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
+    )
+    pivot_cap7000 = crear_pivot_suma(
+        df, lambda d: (d['Capitulo'] == 7000) & (~d['Pp'].isin(PROGRAMAS_ESPECIFICOS))
     )
 
     # ── Subtotales y totales ─────────────────────────────────────────────────
@@ -185,24 +193,30 @@ def procesar_map(df, filename):
     totales = {
         'Original': (pivot_cap1000['Original'] + pivot_cap2000_3000['Original'] +
                      subtotal_subsidios['Original'] +
-                     pivot_cap4000['Original'] + pivot_cap5000_7000['Original']),
+                     pivot_cap4000['Original'] + pivot_cap5000['Original'] +
+                     pivot_cap6000['Original'] + pivot_cap7000['Original']),
         'ModificadoAnualNeto': (pivot_cap1000['ModificadoAnualNeto'] + pivot_cap2000_3000['ModificadoAnualNeto'] +
                                 subtotal_subsidios['ModificadoAnualNeto'] +
-                                pivot_cap4000['ModificadoAnualNeto'] + pivot_cap5000_7000['ModificadoAnualNeto']),
+                                pivot_cap4000['ModificadoAnualNeto'] + pivot_cap5000['ModificadoAnualNeto'] +
+                                pivot_cap6000['ModificadoAnualNeto'] + pivot_cap7000['ModificadoAnualNeto']),
         'ModificadoPeriodoNeto': (pivot_cap1000['ModificadoPeriodoNeto'] + pivot_cap2000_3000['ModificadoPeriodoNeto'] +
                                   subtotal_subsidios['ModificadoPeriodoNeto'] +
-                                  pivot_cap4000['ModificadoPeriodoNeto'] + pivot_cap5000_7000['ModificadoPeriodoNeto']),
+                                  pivot_cap4000['ModificadoPeriodoNeto'] + pivot_cap5000['ModificadoPeriodoNeto'] +
+                                  pivot_cap6000['ModificadoPeriodoNeto'] + pivot_cap7000['ModificadoPeriodoNeto']),
         'Ejercido': (pivot_cap1000['Ejercido'] + pivot_cap2000_3000['Ejercido'] +
                      subtotal_subsidios['Ejercido'] +
-                     pivot_cap4000['Ejercido'] + pivot_cap5000_7000['Ejercido']),
+                     pivot_cap4000['Ejercido'] + pivot_cap5000['Ejercido'] +
+                     pivot_cap6000['Ejercido'] + pivot_cap7000['Ejercido']),
     }
 
     categorias = {
-        'servicios_personales': pivot_cap1000,
-        'gasto_corriente':      pivot_cap2000_3000,
-        'subsidios':            subtotal_subsidios,
-        'otros_programas':      pivot_cap4000,
-        'bienes_muebles':       pivot_cap5000_7000,
+        'servicios_personales':   pivot_cap1000,
+        'gasto_corriente':        pivot_cap2000_3000,
+        'subsidios':              subtotal_subsidios,
+        'otros_programas':        pivot_cap4000,
+        'bienes_muebles':         pivot_cap5000,
+        'inversion_publica':      pivot_cap6000,
+        'inversiones_financieras': pivot_cap7000,
     }
 
     # ── Cálculos por UR para Dashboard Presupuesto ───────────────────────────
@@ -273,11 +287,21 @@ def procesar_map(df, filename):
             'textos':           congelados_textos,
             'valores_periodo':  congelados_valores_periodo,
             'textos_periodo':   congelados_textos_periodo,
-            # Bienes muebles
+            # Bienes muebles (cap 5000)
             'bm_anual':         bm_cong_anual,
             'bm_anual_texto':   numero_a_letras_mx(bm_cong_anual)   if bm_cong_anual   > 0 else '',
             'bm_periodo':       bm_cong_periodo,
             'bm_periodo_texto': numero_a_letras_mx(bm_cong_periodo) if bm_cong_periodo > 0 else '',
+            # Inversión pública (cap 6000)
+            'ip_anual':         ip_cong_anual,
+            'ip_anual_texto':   numero_a_letras_mx(ip_cong_anual)   if ip_cong_anual   > 0 else '',
+            'ip_periodo':       ip_cong_periodo,
+            'ip_periodo_texto': numero_a_letras_mx(ip_cong_periodo) if ip_cong_periodo > 0 else '',
+            # Inversiones financieras y otras provisiones (cap 7000)
+            'if_anual':         if_cong_anual,
+            'if_anual_texto':   numero_a_letras_mx(if_cong_anual)   if if_cong_anual   > 0 else '',
+            'if_periodo':       if_cong_periodo,
+            'if_periodo_texto': numero_a_letras_mx(if_cong_periodo) if if_cong_periodo > 0 else '',
         },
         'totales':    totales,
         'categorias': categorias,
