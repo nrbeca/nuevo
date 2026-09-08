@@ -166,9 +166,11 @@ def generar_excel_map(resultados):
         'Ejercido':              sum(programas.get(p, {}).get('Ejercido', 0)              for p in PROGRAMAS_ESPECIFICOS) + cat_otros['Ejercido'],
     }
 
-    cat_sp  = categorias.get('servicios_personales', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cat_gc  = categorias.get('gasto_corriente',      {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cat_bm  = categorias.get('bienes_muebles',       {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cat_sp  = categorias.get('servicios_personales',    {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cat_gc  = categorias.get('gasto_corriente',         {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cat_bm  = categorias.get('bienes_muebles',          {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cat_ip  = categorias.get('inversion_publica',       {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cat_if  = categorias.get('inversiones_financieras', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
 
     # ── Calcular mapa nota → programa dinámicamente ───────────────────────────
     # Todos los sin congelado llevan siempre "3/" — una sola nota genérica al pie.
@@ -184,9 +186,6 @@ def generar_excel_map(resultados):
             contador_nota += 1
         else:
             nota_por_prog[prog] = NOTA_SIN_CONG
-    nota_6 = contador_nota
-    nota_7 = contador_nota + 1
-
     # ── Escribir filas ────────────────────────────────────────────────────────
     escribir_fila_datos(6, 'Totales:',                         totales,            es_total=True)
     ws.row_dimensions[6].height = 19.5
@@ -213,11 +212,41 @@ def generar_excel_map(resultados):
         ws.row_dimensions[fila].height = 39 if len(concepto_prog) > 50 else 20.25
         fila += 1
 
-    escribir_fila_datos(fila, f'Otros programas de subsidios y Gastos asociados {nota_6}/', cat_otros)
+    # ── Notas de "Otros programas", Bienes muebles, Inversión pública e Inversiones
+    #    financieras: solo llevan nota propia si tienen recursos congelados; si no,
+    #    comparten la nota genérica 3/ en lugar de repetir una nota casi idéntica.
+    nota_otros = NOTA_SIN_CONG
+
+    bm_anual, bm_periodo = congelados.get('bm_anual', 0), congelados.get('bm_periodo', 0)
+    if bm_anual > 0 or bm_periodo > 0:
+        nota_bm = contador_nota
+        contador_nota += 1
+    else:
+        nota_bm = NOTA_SIN_CONG
+
+    nota_ip = contador_nota
+    contador_nota += 1
+
+    if_anual, if_periodo = congelados.get('if_anual', 0), congelados.get('if_periodo', 0)
+    if if_anual > 0 or if_periodo > 0:
+        nota_if = contador_nota
+        contador_nota += 1
+    else:
+        nota_if = NOTA_SIN_CONG
+
+    escribir_fila_datos(fila, f'Otros programas de subsidios y Gastos asociados {nota_otros}/', cat_otros)
     ws.row_dimensions[fila].height = 20.25
     fila += 1
 
-    escribir_fila_datos(fila, f'Bienes muebles, inmuebles e intangibles {nota_7}/', cat_bm, es_subtotal=True, es_gris=True)
+    escribir_fila_datos(fila, f'Bienes muebles, inmuebles e intangibles {nota_bm}/', cat_bm, es_subtotal=True, es_gris=True)
+    ws.row_dimensions[fila].height = 19.5
+    fila += 1
+
+    escribir_fila_datos(fila, f'Inversión pública {nota_ip}/', cat_ip, es_subtotal=True, es_gris=True)
+    ws.row_dimensions[fila].height = 19.5
+    fila += 1
+
+    escribir_fila_datos(fila, f'Inversiones financieras y otras provisiones {nota_if}/', cat_if, es_subtotal=True, es_gris=True)
     ws.row_dimensions[fila].height = 19.5
     fila += 1
 
@@ -278,42 +307,58 @@ def generar_excel_map(resultados):
                 nota += f' Y un monto al periodo de ${v_p:,.2f} ({t_p}), de recursos congelados.'
             fila_notas = _nota_plain(fila_notas, nota, altura=30)
 
-    fila_notas = _nota_plain(fila_notas, f'{nota_6}/ Incluye diversos programas de carácter administrativo.')
+    # ── Notas de congelados por capítulo ────────────────────────────────────
+    # "Otros programas" y, cuando no tienen congelados, "Bienes muebles" e
+    # "Inversiones financieras" comparten la nota 3/ y no repiten una nota
+    # propia casi idéntica. "Inversión pública" siempre lleva su propia nota.
+    def _construir_nota_congelado(numero_nota, etiqueta, capitulos, clave_anual, clave_anual_texto, clave_periodo, clave_periodo_texto):
+        v_anual   = congelados.get(clave_anual, 0)
+        t_anual   = congelados.get(clave_anual_texto, '')
+        v_periodo = congelados.get(clave_periodo, 0)
+        t_periodo = congelados.get(clave_periodo_texto, '')
+        # Fallback si el pickle fue generado antes de que existieran estas claves
+        if (v_anual == 0 or v_periodo == 0) and 'df_procesado' in resultados:
+            try:
+                df_proc = resultados['df_procesado']
+                progs_esp = config.get('programas_especificos', [])
+                df_calc = df_proc[
+                    df_proc['Capitulo'].isin(capitulos) &
+                    (~df_proc['Pp'].isin(progs_esp))
+                ]
+                if not df_calc.empty and 'CongeladoPeriodo' in df_calc.columns:
+                    if v_anual == 0:
+                        v_anual = round(float(df_calc['CongeladoAnual'].sum()), 2)
+                    if v_periodo == 0:
+                        v_periodo = round(float(df_calc['CongeladoPeriodo'].sum()), 2)
+            except Exception:
+                pass
+        if not t_anual and v_anual > 0:
+            t_anual = numero_a_letras_mx(v_anual)
+        if not t_periodo and v_periodo > 0:
+            t_periodo = numero_a_letras_mx(v_periodo)
+        if v_anual > 0 or v_periodo > 0:
+            nota = (f'{numero_nota}/ El presupuesto modificado incluye un monto anual de '
+                    f'${v_anual:,.2f} ({t_anual}), de recursos congelados.')
+            if v_periodo > 0:
+                nota += (f' Y un monto al periodo de ${v_periodo:,.2f} '
+                         f'({t_periodo}), de recursos congelados.')
+        else:
+            nota = f'{numero_nota}/ Sin recursos congelados para {etiqueta}.'
+        return nota
 
-    # Nota de Bienes muebles
-    bm_anual         = congelados.get('bm_anual', 0)
-    bm_anual_texto   = congelados.get('bm_anual_texto', '')
-    bm_periodo       = congelados.get('bm_periodo', 0)
-    bm_periodo_texto = congelados.get('bm_periodo_texto', '')
-    # Fallback si el pickle fue generado antes de que existiera bm_periodo/bm_anual
-    if (bm_anual == 0 or bm_periodo == 0) and 'df_procesado' in resultados:
-        try:
-            df_proc = resultados['df_procesado']
-            progs_esp = config.get('programas_especificos', [])
-            df_bm_calc = df_proc[
-                df_proc['Capitulo'].isin([5000, 7000]) &
-                (~df_proc['Pp'].isin(progs_esp))
-            ]
-            if not df_bm_calc.empty and 'CongeladoPeriodo' in df_bm_calc.columns:
-                if bm_anual == 0:
-                    bm_anual = round(float(df_bm_calc['CongeladoAnual'].sum()), 2)
-                if bm_periodo == 0:
-                    bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
-        except Exception:
-            pass
-    if not bm_anual_texto and bm_anual > 0:
-        bm_anual_texto = numero_a_letras_mx(bm_anual)
-    if not bm_periodo_texto and bm_periodo > 0:
-        bm_periodo_texto = numero_a_letras_mx(bm_periodo)
-    if bm_anual > 0 or bm_periodo > 0:
-        nota7 = (f'{nota_7}/ El presupuesto modificado incluye un monto anual de '
-                 f'${bm_anual:,.2f} ({bm_anual_texto}), de recursos congelados.')
-        if bm_periodo > 0:
-            nota7 += (f' Y un monto al periodo de ${bm_periodo:,.2f} '
-                      f'({bm_periodo_texto}), de recursos congelados.')
-    else:
-        nota7 = f'{nota_7}/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.'
-    fila_notas = _nota_plain(fila_notas, nota7, altura=30)
+    nota_ip_texto = _construir_nota_congelado(nota_ip, 'Inversión pública', [6000],
+                                               'ip_anual', 'ip_anual_texto', 'ip_periodo', 'ip_periodo_texto')
+    fila_notas = _nota_plain(fila_notas, nota_ip_texto, altura=30)
+
+    if nota_bm != NOTA_SIN_CONG:
+        nota_bm_texto = _construir_nota_congelado(nota_bm, 'Bienes muebles, inmuebles e intangibles', [5000],
+                                                    'bm_anual', 'bm_anual_texto', 'bm_periodo', 'bm_periodo_texto')
+        fila_notas = _nota_plain(fila_notas, nota_bm_texto, altura=30)
+
+    if nota_if != NOTA_SIN_CONG:
+        nota_if_texto = _construir_nota_congelado(nota_if, 'Inversiones financieras y otras provisiones', [7000],
+                                                    'if_anual', 'if_anual_texto', 'if_periodo', 'if_periodo_texto')
+        fila_notas = _nota_plain(fila_notas, nota_if_texto, altura=30)
 
     # Limpiar bordes de filas vacías
     for row in [2, 4]:
