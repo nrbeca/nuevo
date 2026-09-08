@@ -612,9 +612,6 @@ elif pagina == " Ver MAP":
         else:
             nota_por_prog[prog] = NOTA_SIN_CONG
 
-    nota_6 = contador_nota
-    nota_7 = contador_nota + 1
-
     for prog in programas_especificos:
         nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
         import re as _re
@@ -628,17 +625,54 @@ elif pagina == " Ver MAP":
             '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
             '_tipo': 'programa'})
 
-    cuadro_data.append({'Concepto': f'Otros programas de subsidios y Gastos asociados {nota_6}/', 'Original': cat_otros['Original'],
+    # ── Notas de "Otros programas", Bienes muebles, Inversión pública e Inversiones
+    #    financieras: solo llevan nota propia si tienen recursos congelados; si no,
+    #    comparten la nota genérica 3/ ("Sin recursos congelados para este programa")
+    #    en lugar de repetir una nota casi idéntica con número distinto.
+    nota_otros = NOTA_SIN_CONG
+
+    bm_anual, bm_periodo = congelados.get('bm_anual', 0), congelados.get('bm_periodo', 0)
+    if bm_anual > 0 or bm_periodo > 0:
+        nota_bm = contador_nota
+        contador_nota += 1
+    else:
+        nota_bm = NOTA_SIN_CONG
+
+    nota_ip = contador_nota
+    contador_nota += 1
+
+    if_anual, if_periodo = congelados.get('if_anual', 0), congelados.get('if_periodo', 0)
+    if if_anual > 0 or if_periodo > 0:
+        nota_if = contador_nota
+        contador_nota += 1
+    else:
+        nota_if = NOTA_SIN_CONG
+
+    cuadro_data.append({'Concepto': f'Otros programas de subsidios y Gastos asociados {nota_otros}/', 'Original': cat_otros['Original'],
         'Mod. Anual': cat_otros['ModificadoAnualNeto'], 'Mod. Periodo': cat_otros['ModificadoPeriodoNeto'],
         'Ejercido': cat_otros['Ejercido'], 'Disponible': cat_otros['ModificadoPeriodoNeto'] - cat_otros['Ejercido'],
         '% Avance': cat_otros['Ejercido'] / cat_otros['ModificadoPeriodoNeto'] * 100 if cat_otros['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'programa'})
 
     cat_bm = categorias.get('bienes_muebles', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': f'Bienes muebles, inmuebles e intangibles {nota_7}/', 'Original': cat_bm['Original'],
+    cuadro_data.append({'Concepto': f'Bienes muebles, inmuebles e intangibles {nota_bm}/', 'Original': cat_bm['Original'],
         'Mod. Anual': cat_bm['ModificadoAnualNeto'], 'Mod. Periodo': cat_bm['ModificadoPeriodoNeto'],
         'Ejercido': cat_bm['Ejercido'], 'Disponible': cat_bm['ModificadoPeriodoNeto'] - cat_bm['Ejercido'],
         '% Avance': cat_bm['Ejercido'] / cat_bm['ModificadoPeriodoNeto'] * 100 if cat_bm['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'subtotal'})
+
+    cat_ip = categorias.get('inversion_publica', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cuadro_data.append({'Concepto': f'Inversión pública {nota_ip}/', 'Original': cat_ip['Original'],
+        'Mod. Anual': cat_ip['ModificadoAnualNeto'], 'Mod. Periodo': cat_ip['ModificadoPeriodoNeto'],
+        'Ejercido': cat_ip['Ejercido'], 'Disponible': cat_ip['ModificadoPeriodoNeto'] - cat_ip['Ejercido'],
+        '% Avance': cat_ip['Ejercido'] / cat_ip['ModificadoPeriodoNeto'] * 100 if cat_ip['ModificadoPeriodoNeto'] > 0 else 0,
+        '_tipo': 'subtotal'})
+
+    cat_if = categorias.get('inversiones_financieras', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
+    cuadro_data.append({'Concepto': f'Inversiones financieras y otras provisiones {nota_if}/', 'Original': cat_if['Original'],
+        'Mod. Anual': cat_if['ModificadoAnualNeto'], 'Mod. Periodo': cat_if['ModificadoPeriodoNeto'],
+        'Ejercido': cat_if['Ejercido'], 'Disponible': cat_if['ModificadoPeriodoNeto'] - cat_if['Ejercido'],
+        '% Avance': cat_if['Ejercido'] / cat_if['ModificadoPeriodoNeto'] * 100 if cat_if['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
     df_cuadro = pd.DataFrame(cuadro_data)
@@ -679,37 +713,50 @@ elif pagina == " Ver MAP":
             if v_periodo > 0:
                 nota += f" Y un monto al periodo de \\${v_periodo:,.2f} ({texto_periodo}), de recursos congelados."
             st.markdown(nota)
-    st.markdown(f"{nota_6}/ Incluye diversos programas de carácter administrativo.")
-    bm_anual = congelados.get('bm_anual', 0)
-    bm_anual_texto = congelados.get('bm_anual_texto', '')
-    bm_periodo = congelados.get('bm_periodo', 0)
-    bm_periodo_texto = congelados.get('bm_periodo_texto', '')
-    if (bm_anual == 0 or bm_periodo == 0) and 'df_procesado' in resultados:
-        try:
-            df_proc = resultados['df_procesado']
-            PROGRAMAS_ESPECIFICOS_CONF = config.get('programas_especificos', [])
-            df_bm_calc = df_proc[
-                df_proc['Capitulo'].isin([5000, 7000]) &
-                (~df_proc['Pp'].isin(PROGRAMAS_ESPECIFICOS_CONF))
-            ]
-            if not df_bm_calc.empty and 'CongeladoPeriodo' in df_bm_calc.columns:
-                if bm_anual == 0:
-                    bm_anual = round(float(df_bm_calc['CongeladoAnual'].sum()), 2)
-                if bm_periodo == 0:
-                    bm_periodo = round(float(df_bm_calc['CongeladoPeriodo'].sum()), 2)
-        except Exception:
-            pass
-    if not bm_anual_texto and bm_anual > 0:
-        bm_anual_texto = numero_a_letras_mx(bm_anual)
-    if not bm_periodo_texto and bm_periodo > 0:
-        bm_periodo_texto = numero_a_letras_mx(bm_periodo)
-    if bm_anual > 0 or bm_periodo > 0:
-        nota7 = f"{nota_7}/ El presupuesto modificado incluye un monto anual de \\${bm_anual:,.2f} ({bm_anual_texto}), de recursos congelados."
-        if bm_periodo > 0:
-            nota7 += f" Y un monto al periodo de \\${bm_periodo:,.2f} ({bm_periodo_texto}), de recursos congelados."
-        st.markdown(nota7)
-    else:
-        st.markdown(f"{nota_7}/ Sin recursos congelados para Bienes muebles, inmuebles e intangibles.")
+    def _nota_congelado_capitulo(numero_nota, etiqueta, capitulos, clave_anual, clave_anual_texto, clave_periodo, clave_periodo_texto):
+        """Construye la nota de recursos congelados para uno o varios capítulos, con fallback al df procesado."""
+        v_anual   = congelados.get(clave_anual, 0)
+        t_anual   = congelados.get(clave_anual_texto, '')
+        v_periodo = congelados.get(clave_periodo, 0)
+        t_periodo = congelados.get(clave_periodo_texto, '')
+        if (v_anual == 0 or v_periodo == 0) and 'df_procesado' in resultados:
+            try:
+                df_proc = resultados['df_procesado']
+                PROGRAMAS_ESPECIFICOS_CONF = config.get('programas_especificos', [])
+                df_calc = df_proc[
+                    df_proc['Capitulo'].isin(capitulos) &
+                    (~df_proc['Pp'].isin(PROGRAMAS_ESPECIFICOS_CONF))
+                ]
+                if not df_calc.empty and 'CongeladoPeriodo' in df_calc.columns:
+                    if v_anual == 0:
+                        v_anual = round(float(df_calc['CongeladoAnual'].sum()), 2)
+                    if v_periodo == 0:
+                        v_periodo = round(float(df_calc['CongeladoPeriodo'].sum()), 2)
+            except Exception:
+                pass
+        if not t_anual and v_anual > 0:
+            t_anual = numero_a_letras_mx(v_anual)
+        if not t_periodo and v_periodo > 0:
+            t_periodo = numero_a_letras_mx(v_periodo)
+        if v_anual > 0 or v_periodo > 0:
+            nota = f"{numero_nota}/ El presupuesto modificado incluye un monto anual de \\${v_anual:,.2f} ({t_anual}), de recursos congelados."
+            if v_periodo > 0:
+                nota += f" Y un monto al periodo de \\${v_periodo:,.2f} ({t_periodo}), de recursos congelados."
+            st.markdown(nota)
+        else:
+            st.markdown(f"{numero_nota}/ Sin recursos congelados para {etiqueta}.")
+
+    # "Otros programas" y, cuando no tienen congelados, "Bienes muebles" e "Inversiones
+    # financieras" comparten la nota 3/ ("Sin recursos congelados para este programa")
+    # y no repiten una nota propia. "Inversión pública" siempre lleva su propia nota.
+    _nota_congelado_capitulo(nota_ip, "Inversión pública", [6000],
+                              'ip_anual', 'ip_anual_texto', 'ip_periodo', 'ip_periodo_texto')
+    if nota_bm != NOTA_SIN_CONG:
+        _nota_congelado_capitulo(nota_bm, "Bienes muebles, inmuebles e intangibles", [5000],
+                                  'bm_anual', 'bm_anual_texto', 'bm_periodo', 'bm_periodo_texto')
+    if nota_if != NOTA_SIN_CONG:
+        _nota_congelado_capitulo(nota_if, "Inversiones financieras y otras provisiones", [7000],
+                                  'if_anual', 'if_anual_texto', 'if_periodo', 'if_periodo_texto')
 
 # ============================================================================
 # PÁGINA: VER SICOP
