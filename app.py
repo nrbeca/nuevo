@@ -282,7 +282,18 @@ def calcular_pasivos_cop_desde_sicop(df_original, ur_codigo, config):
     pago_B = 0.0
     if tiene_ff:
         df_B = df[(df['FUENTE_FINANCIAMIENTO'] == 6) & (df['CONTROL_OPERATIVO'] == 0)]
-        pago_B = float(df_B[df_B['ID_UNIDAD'].isin(urs_propias)]['EJERCIDO'].sum())
+        df_B_ur = df_B[df_B['ID_UNIDAD'].isin(urs_propias)]
+        if ur_codigo == '511':
+            pago_B = float(df_B_ur['EJERCIDO'].sum())
+            if tiene_partida:
+                mask_nom_b = (df_B['CAPITULO'] == 1) | (df_B['Partida'] == 39801)
+                pago_B += float(df_B[~df_B['ID_UNIDAD'].isin(urs_propias) & mask_nom_b]['EJERCIDO'].sum())
+        else:
+            if tiene_partida and not df_B_ur.empty:
+                mask_excluir_b = (df_B_ur['CAPITULO'] == 1) | (df_B_ur['Partida'] == 39801)
+                pago_B = float(df_B_ur[~mask_excluir_b]['EJERCIDO'].sum())
+            else:
+                pago_B = float(df_B_ur['EJERCIDO'].sum())
 
     return {
         'PagoCOP_00': round(pago_B, 2),
@@ -707,7 +718,7 @@ elif pagina == " Ver MAP":
     st.markdown("**Notas:**")
     st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
-    st.markdown("3/ Sin recursos congelados.")
+    st.markdown("3/ El presupuesto modificado no incluye recursos congelados.")
     for prog in programas_especificos:
         v_anual     = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
