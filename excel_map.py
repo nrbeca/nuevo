@@ -109,8 +109,8 @@ def generar_excel_map(resultados):
     headers = [
         ('B', 'Concepto / Programa Presupuestario'),
         ('C', 'Original\n( a )'),
-        ('D', 'Modificado anual\n( b )'),
-        ('E', 'Modificado al periodo\n( c )'),
+        ('D', 'Modificado anual 3/\n( b )'),
+        ('E', 'Modificado al periodo 3/\n( c )'),
         ('F', 'Ejercido Acumulado\n( d )'),
         ('G', 'Disponible al periodo\n( e ) = ( c ) - ( d )'),
         ('H', 'Porcentaje de avance al periodo\n( f ) = ( d ) / ( c )'),
@@ -173,9 +173,9 @@ def generar_excel_map(resultados):
     cat_if  = categorias.get('inversiones_financieras', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
 
     # ── Calcular mapa nota → programa dinámicamente ───────────────────────────
-    # Todos los sin congelado llevan siempre "3/" — una sola nota genérica al pie.
-    # Los que tienen congelado se numeran dinámicamente desde 4.
-    NOTA_SIN_CONG = 3
+    # Las filas sin congelado ya no llevan nota propia (esa aclaración ahora
+    # vive en los encabezados "Modificado anual 3/" / "Modificado al periodo 3/").
+    # Los que sí tienen congelado se numeran dinámicamente desde 4.
     nota_por_prog = {}
     contador_nota = 4
     for prog in PROGRAMAS_ESPECIFICOS:
@@ -185,7 +185,7 @@ def generar_excel_map(resultados):
             nota_por_prog[prog] = contador_nota
             contador_nota += 1
         else:
-            nota_por_prog[prog] = NOTA_SIN_CONG
+            nota_por_prog[prog] = None
     # ── Escribir filas ────────────────────────────────────────────────────────
     escribir_fila_datos(6, 'Totales:',                         totales,            es_total=True)
     ws.row_dimensions[6].height = 19.5
@@ -193,10 +193,10 @@ def generar_excel_map(resultados):
     escribir_fila_datos(7, 'Servicios personales',             cat_sp,             es_subtotal=True, es_gris=True)
     ws.row_dimensions[7].height = 19.5
 
-    escribir_fila_datos(8, 'Gasto corriente 1/',               cat_gc,             es_subtotal=True, es_gris=True)
+    escribir_fila_datos(8, 'Gasto corriente 2/',               cat_gc,             es_subtotal=True, es_gris=True)
     ws.row_dimensions[8].height = 20.25
 
-    escribir_fila_datos(9, 'Subsidios y Gastos asociados 2/',  subtotal_subsidios, es_subtotal=True, es_gris=True)
+    escribir_fila_datos(9, 'Subsidios y Gastos asociados',     subtotal_subsidios, es_subtotal=True, es_gris=True)
     ws.row_dimensions[9].height = 20.25
 
     fila = 10
@@ -207,22 +207,23 @@ def generar_excel_map(resultados):
         nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
         prog_data = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
         n = nota_por_prog[prog]
-        concepto_prog = f'{nombre_base} {n}/'
+        concepto_prog = f'{nombre_base}' + (f' {n}/' if n is not None else '')
         escribir_fila_datos(fila, concepto_prog, prog_data)
         ws.row_dimensions[fila].height = 39 if len(concepto_prog) > 50 else 20.25
         fila += 1
 
     # ── Notas de "Otros programas", Bienes muebles, Inversión pública e Inversiones
-    #    financieras: solo llevan nota propia si tienen recursos congelados; si no,
-    #    comparten la nota genérica 3/ en lugar de repetir una nota casi idéntica.
-    nota_otros = NOTA_SIN_CONG
+    #    financieras: "Otros programas" ya no lleva nota propia. "Bienes muebles" e
+    #    "Inversiones financieras" solo llevan nota si tienen recursos congelados.
+    #    "Inversión pública" siempre lleva su propia nota.
+    nota_otros = None
 
     bm_anual, bm_periodo = congelados.get('bm_anual', 0), congelados.get('bm_periodo', 0)
     if bm_anual > 0 or bm_periodo > 0:
         nota_bm = contador_nota
         contador_nota += 1
     else:
-        nota_bm = NOTA_SIN_CONG
+        nota_bm = None
 
     nota_ip = contador_nota
     contador_nota += 1
@@ -232,21 +233,24 @@ def generar_excel_map(resultados):
         nota_if = contador_nota
         contador_nota += 1
     else:
-        nota_if = NOTA_SIN_CONG
+        nota_if = None
 
-    escribir_fila_datos(fila, f'Otros programas de subsidios y Gastos asociados {nota_otros}/', cat_otros)
+    def _suf(n):
+        return f' {n}/' if n is not None else ''
+
+    escribir_fila_datos(fila, f'Otros programas de subsidios y Gastos asociados{_suf(nota_otros)}', cat_otros)
     ws.row_dimensions[fila].height = 20.25
     fila += 1
 
-    escribir_fila_datos(fila, f'Bienes muebles, inmuebles e intangibles {nota_bm}/', cat_bm, es_subtotal=True, es_gris=True)
+    escribir_fila_datos(fila, f'Bienes muebles, inmuebles e intangibles{_suf(nota_bm)}', cat_bm, es_subtotal=True, es_gris=True)
     ws.row_dimensions[fila].height = 19.5
     fila += 1
 
-    escribir_fila_datos(fila, f'Inversión pública {nota_ip}/', cat_ip, es_subtotal=True, es_gris=True)
+    escribir_fila_datos(fila, f'Inversión pública{_suf(nota_ip)}', cat_ip, es_subtotal=True, es_gris=True)
     ws.row_dimensions[fila].height = 19.5
     fila += 1
 
-    escribir_fila_datos(fila, f'Inversiones financieras y otras provisiones {nota_if}/', cat_if, es_subtotal=True, es_gris=True)
+    escribir_fila_datos(fila, f'Inversiones financieras y otras provisiones{_suf(nota_if)}', cat_if, es_subtotal=True, es_gris=True)
     ws.row_dimensions[fila].height = 19.5
     fila += 1
 
@@ -288,11 +292,9 @@ def generar_excel_map(resultados):
     fila_notas += 1
 
     fila_notas = _nota_plain(fila_notas,
-        '1/ Incluye los capítulos de gasto 2000 "Materiales y suministros" y 3000 "Servicios generales".')
-    fila_notas = _nota_plain(fila_notas,
         '2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.')
     fila_notas = _nota_plain(fila_notas,
-        '3/ Sin recursos congelados para este programa.')
+        '3/ El presupuesto modificado no incluye recursos congelados, salvo que se indique lo contrario en la nota correspondiente.')
 
     # Notas dinámicas solo para programas CON congelado (desde 4)
     for prog in PROGRAMAS_ESPECIFICOS:
@@ -350,12 +352,12 @@ def generar_excel_map(resultados):
                                                'ip_anual', 'ip_anual_texto', 'ip_periodo', 'ip_periodo_texto')
     fila_notas = _nota_plain(fila_notas, nota_ip_texto, altura=30)
 
-    if nota_bm != NOTA_SIN_CONG:
+    if nota_bm is not None:
         nota_bm_texto = _construir_nota_congelado(nota_bm, 'Bienes muebles, inmuebles e intangibles', [5000],
                                                     'bm_anual', 'bm_anual_texto', 'bm_periodo', 'bm_periodo_texto')
         fila_notas = _nota_plain(fila_notas, nota_bm_texto, altura=30)
 
-    if nota_if != NOTA_SIN_CONG:
+    if nota_if is not None:
         nota_if_texto = _construir_nota_congelado(nota_if, 'Inversiones financieras y otras provisiones', [7000],
                                                     'if_anual', 'if_anual_texto', 'if_periodo', 'if_periodo_texto')
         fila_notas = _nota_plain(fila_notas, nota_if_texto, altura=30)
