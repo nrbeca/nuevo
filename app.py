@@ -579,7 +579,7 @@ elif pagina == " Ver MAP":
         '_tipo': 'subtotal'})
 
     cat_gc = categorias.get('gasto_corriente', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': 'Gasto corriente 2/', 'Original': cat_gc['Original'],
+    cuadro_data.append({'Concepto': 'Gasto corriente 1/ 2/', 'Original': cat_gc['Original'],
         'Mod. Anual 3/': cat_gc['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_gc['ModificadoPeriodoNeto'],
         'Ejercido': cat_gc['Ejercido'], 'Disponible': cat_gc['ModificadoPeriodoNeto'] - cat_gc['Ejercido'],
         '% Avance': cat_gc['Ejercido'] / cat_gc['ModificadoPeriodoNeto'] * 100 if cat_gc['ModificadoPeriodoNeto'] > 0 else 0,
@@ -705,8 +705,9 @@ elif pagina == " Ver MAP":
     st.markdown("---")
     st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
     st.markdown("**Notas:**")
+    st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
-    st.markdown("3/ El presupuesto modificado no incluye recursos congelados, salvo que se indique lo contrario en la nota correspondiente.")
+    st.markdown("3/ El presupuesto modificado no incluye recursos congelados.")
     for prog in programas_especificos:
         v_anual     = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
