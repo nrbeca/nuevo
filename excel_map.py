@@ -193,7 +193,7 @@ def generar_excel_map(resultados):
     escribir_fila_datos(7, 'Servicios personales',             cat_sp,             es_subtotal=True, es_gris=True)
     ws.row_dimensions[7].height = 19.5
 
-    escribir_fila_datos(8, 'Gasto corriente 2/',               cat_gc,             es_subtotal=True, es_gris=True)
+    escribir_fila_datos(8, 'Gasto corriente 1/ 2/',             cat_gc,             es_subtotal=True, es_gris=True)
     ws.row_dimensions[8].height = 20.25
 
     escribir_fila_datos(9, 'Subsidios y Gastos asociados',     subtotal_subsidios, es_subtotal=True, es_gris=True)
@@ -292,9 +292,11 @@ def generar_excel_map(resultados):
     fila_notas += 1
 
     fila_notas = _nota_plain(fila_notas,
+        '1/ Incluye los capítulos de gasto 2000 "Materiales y suministros" y 3000 "Servicios generales".')
+    fila_notas = _nota_plain(fila_notas,
         '2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.')
     fila_notas = _nota_plain(fila_notas,
-        '3/ El presupuesto modificado no incluye recursos congelados, salvo que se indique lo contrario en la nota correspondiente.')
+        '3/ El presupuesto modificado no incluye recursos congelados.')
 
     # Notas dinámicas solo para programas CON congelado (desde 4)
     for prog in PROGRAMAS_ESPECIFICOS:
