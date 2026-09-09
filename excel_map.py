@@ -296,7 +296,7 @@ def generar_excel_map(resultados):
     fila_notas = _nota_plain(fila_notas,
         '2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.')
     fila_notas = _nota_plain(fila_notas,
-        '3/ El presupuesto modificado no incluye recursos congelados.')
+        '3/ Sin recursos congelados.')
 
     # Notas dinámicas solo para programas CON congelado (desde 4)
     for prog in PROGRAMAS_ESPECIFICOS:
