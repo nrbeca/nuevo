@@ -565,7 +565,7 @@ elif pagina == " Ver MAP":
     nombres_especiales = config.get('nombres_especiales', {})
 
     cuadro_data.append({'Concepto': 'Totales:', 'Original': totales['Original'],
-        'Mod. Anual': totales['ModificadoAnualNeto'], 'Mod. Periodo': totales['ModificadoPeriodoNeto'],
+        'Mod. Anual 3/': totales['ModificadoAnualNeto'], 'Mod. Periodo 3/': totales['ModificadoPeriodoNeto'],
         'Ejercido': totales['Ejercido'],
         'Disponible': totales['ModificadoPeriodoNeto'] - totales['Ejercido'],
         '% Avance': totales['Ejercido'] / totales['ModificadoPeriodoNeto'] * 100 if totales['ModificadoPeriodoNeto'] > 0 else 0,
@@ -573,14 +573,14 @@ elif pagina == " Ver MAP":
 
     cat_sp = categorias.get('servicios_personales', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
     cuadro_data.append({'Concepto': 'Servicios Personales', 'Original': cat_sp['Original'],
-        'Mod. Anual': cat_sp['ModificadoAnualNeto'], 'Mod. Periodo': cat_sp['ModificadoPeriodoNeto'],
+        'Mod. Anual 3/': cat_sp['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_sp['ModificadoPeriodoNeto'],
         'Ejercido': cat_sp['Ejercido'], 'Disponible': cat_sp['ModificadoPeriodoNeto'] - cat_sp['Ejercido'],
         '% Avance': cat_sp['Ejercido'] / cat_sp['ModificadoPeriodoNeto'] * 100 if cat_sp['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
     cat_gc = categorias.get('gasto_corriente', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': 'Gasto corriente 1/', 'Original': cat_gc['Original'],
-        'Mod. Anual': cat_gc['ModificadoAnualNeto'], 'Mod. Periodo': cat_gc['ModificadoPeriodoNeto'],
+    cuadro_data.append({'Concepto': 'Gasto corriente 2/', 'Original': cat_gc['Original'],
+        'Mod. Anual 3/': cat_gc['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_gc['ModificadoPeriodoNeto'],
         'Ejercido': cat_gc['Ejercido'], 'Disponible': cat_gc['ModificadoPeriodoNeto'] - cat_gc['Ejercido'],
         '% Avance': cat_gc['Ejercido'] / cat_gc['ModificadoPeriodoNeto'] * 100 if cat_gc['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
@@ -594,13 +594,16 @@ elif pagina == " Ver MAP":
         'ModificadoPeriodoNeto':sum(programas.get(p, {}).get('ModificadoPeriodoNeto', 0) for p in programas_especificos) + cat_otros['ModificadoPeriodoNeto'],
         'Ejercido':             sum(programas.get(p, {}).get('Ejercido', 0)             for p in programas_especificos) + cat_otros['Ejercido'],
     }
-    cuadro_data.append({'Concepto': 'Subsidios y Gastos asociados 2/', 'Original': subtotal_subs['Original'],
-        'Mod. Anual': subtotal_subs['ModificadoAnualNeto'], 'Mod. Periodo': subtotal_subs['ModificadoPeriodoNeto'],
+    cuadro_data.append({'Concepto': 'Subsidios y Gastos asociados', 'Original': subtotal_subs['Original'],
+        'Mod. Anual 3/': subtotal_subs['ModificadoAnualNeto'], 'Mod. Periodo 3/': subtotal_subs['ModificadoPeriodoNeto'],
         'Ejercido': subtotal_subs['Ejercido'], 'Disponible': subtotal_subs['ModificadoPeriodoNeto'] - subtotal_subs['Ejercido'],
         '% Avance': subtotal_subs['Ejercido'] / subtotal_subs['ModificadoPeriodoNeto'] * 100 if subtotal_subs['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
-    NOTA_SIN_CONG = 3
+    # "None" marca que la fila no lleva nota propia (ya no se repite el "3/" en cada
+    # fila sin congelados: esa aclaración ahora vive en los encabezados de columna
+    # "Modificado Anual 3/" y "Modificado al Periodo 3/"). Solo las filas con
+    # congelados reales llevan su propio número, empezando en 4.
     nota_por_prog = {}
     contador_nota = 4
     for prog in programas_especificos:
@@ -610,7 +613,7 @@ elif pagina == " Ver MAP":
             nota_por_prog[prog] = contador_nota
             contador_nota += 1
         else:
-            nota_por_prog[prog] = NOTA_SIN_CONG
+            nota_por_prog[prog] = None
 
     for prog in programas_especificos:
         nombre_base = nombres_especiales.get(prog, programas_nombres.get(prog, prog))
@@ -618,25 +621,25 @@ elif pagina == " Ver MAP":
         nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
         n = nota_por_prog[prog]
-        concepto = f"{prog} - {nombre_base} {n}/"
+        concepto = f"{prog} - {nombre_base}" + (f" {n}/" if n is not None else "")
         cuadro_data.append({'Concepto': concepto, 'Original': d.get('Original', 0),
-            'Mod. Anual': d.get('ModificadoAnualNeto', 0), 'Mod. Periodo': d.get('ModificadoPeriodoNeto', 0),
+            'Mod. Anual 3/': d.get('ModificadoAnualNeto', 0), 'Mod. Periodo 3/': d.get('ModificadoPeriodoNeto', 0),
             'Ejercido': d.get('Ejercido', 0), 'Disponible': d.get('ModificadoPeriodoNeto', 0) - d.get('Ejercido', 0),
             '% Avance': d.get('Ejercido', 0) / d.get('ModificadoPeriodoNeto', 1) * 100 if d.get('ModificadoPeriodoNeto', 0) > 0 else 0,
             '_tipo': 'programa'})
 
-    # ── Notas de "Otros programas", Bienes muebles, Inversión pública e Inversiones
-    #    financieras: solo llevan nota propia si tienen recursos congelados; si no,
-    #    comparten la nota genérica 3/ ("Sin recursos congelados para este programa")
-    #    en lugar de repetir una nota casi idéntica con número distinto.
-    nota_otros = NOTA_SIN_CONG
+    # "Otros programas" y, cuando no tienen congelados, "Bienes muebles" e
+    # "Inversiones financieras" ya no llevan nota propia (la aclaración general
+    # vive en los encabezados de columna). "Inversión pública" sigue llevando
+    # siempre su propia nota, tenga o no congelados.
+    nota_otros = None
 
     bm_anual, bm_periodo = congelados.get('bm_anual', 0), congelados.get('bm_periodo', 0)
     if bm_anual > 0 or bm_periodo > 0:
         nota_bm = contador_nota
         contador_nota += 1
     else:
-        nota_bm = NOTA_SIN_CONG
+        nota_bm = None
 
     nota_ip = contador_nota
     contador_nota += 1
@@ -646,31 +649,34 @@ elif pagina == " Ver MAP":
         nota_if = contador_nota
         contador_nota += 1
     else:
-        nota_if = NOTA_SIN_CONG
+        nota_if = None
 
-    cuadro_data.append({'Concepto': f'Otros programas de subsidios y Gastos asociados {nota_otros}/', 'Original': cat_otros['Original'],
-        'Mod. Anual': cat_otros['ModificadoAnualNeto'], 'Mod. Periodo': cat_otros['ModificadoPeriodoNeto'],
+    def _suf(n):
+        return f' {n}/' if n is not None else ''
+
+    cuadro_data.append({'Concepto': f'Otros programas de subsidios y Gastos asociados{_suf(nota_otros)}', 'Original': cat_otros['Original'],
+        'Mod. Anual 3/': cat_otros['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_otros['ModificadoPeriodoNeto'],
         'Ejercido': cat_otros['Ejercido'], 'Disponible': cat_otros['ModificadoPeriodoNeto'] - cat_otros['Ejercido'],
         '% Avance': cat_otros['Ejercido'] / cat_otros['ModificadoPeriodoNeto'] * 100 if cat_otros['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'programa'})
 
     cat_bm = categorias.get('bienes_muebles', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': f'Bienes muebles, inmuebles e intangibles {nota_bm}/', 'Original': cat_bm['Original'],
-        'Mod. Anual': cat_bm['ModificadoAnualNeto'], 'Mod. Periodo': cat_bm['ModificadoPeriodoNeto'],
+    cuadro_data.append({'Concepto': f'Bienes muebles, inmuebles e intangibles{_suf(nota_bm)}', 'Original': cat_bm['Original'],
+        'Mod. Anual 3/': cat_bm['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_bm['ModificadoPeriodoNeto'],
         'Ejercido': cat_bm['Ejercido'], 'Disponible': cat_bm['ModificadoPeriodoNeto'] - cat_bm['Ejercido'],
         '% Avance': cat_bm['Ejercido'] / cat_bm['ModificadoPeriodoNeto'] * 100 if cat_bm['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
     cat_ip = categorias.get('inversion_publica', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': f'Inversión pública {nota_ip}/', 'Original': cat_ip['Original'],
-        'Mod. Anual': cat_ip['ModificadoAnualNeto'], 'Mod. Periodo': cat_ip['ModificadoPeriodoNeto'],
+    cuadro_data.append({'Concepto': f'Inversión pública{_suf(nota_ip)}', 'Original': cat_ip['Original'],
+        'Mod. Anual 3/': cat_ip['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_ip['ModificadoPeriodoNeto'],
         'Ejercido': cat_ip['Ejercido'], 'Disponible': cat_ip['ModificadoPeriodoNeto'] - cat_ip['Ejercido'],
         '% Avance': cat_ip['Ejercido'] / cat_ip['ModificadoPeriodoNeto'] * 100 if cat_ip['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
 
     cat_if = categorias.get('inversiones_financieras', {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
-    cuadro_data.append({'Concepto': f'Inversiones financieras y otras provisiones {nota_if}/', 'Original': cat_if['Original'],
-        'Mod. Anual': cat_if['ModificadoAnualNeto'], 'Mod. Periodo': cat_if['ModificadoPeriodoNeto'],
+    cuadro_data.append({'Concepto': f'Inversiones financieras y otras provisiones{_suf(nota_if)}', 'Original': cat_if['Original'],
+        'Mod. Anual 3/': cat_if['ModificadoAnualNeto'], 'Mod. Periodo 3/': cat_if['ModificadoPeriodoNeto'],
         'Ejercido': cat_if['Ejercido'], 'Disponible': cat_if['ModificadoPeriodoNeto'] - cat_if['Ejercido'],
         '% Avance': cat_if['Ejercido'] / cat_if['ModificadoPeriodoNeto'] * 100 if cat_if['ModificadoPeriodoNeto'] > 0 else 0,
         '_tipo': 'subtotal'})
@@ -689,8 +695,8 @@ elif pagina == " Ver MAP":
         return [''] * len(row)
 
     st.dataframe(
-        df_mostrar.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}',
-            'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}',
+        df_mostrar.style.format({'Original': '${:,.2f}', 'Mod. Anual 3/': '${:,.2f}',
+            'Mod. Periodo 3/': '${:,.2f}', 'Ejercido': '${:,.2f}',
             'Disponible': '${:,.2f}', '% Avance': '{:.2f}%'
         }).apply(estilo_cuadro_map, axis=1),
         use_container_width=True, hide_index=True, height=450,
@@ -699,9 +705,8 @@ elif pagina == " Ver MAP":
     st.markdown("---")
     st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
     st.markdown("**Notas:**")
-    st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
-    st.markdown("3/ Sin recursos congelados para este programa.")
+    st.markdown("3/ El presupuesto modificado no incluye recursos congelados, salvo que se indique lo contrario en la nota correspondiente.")
     for prog in programas_especificos:
         v_anual     = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
@@ -746,15 +751,15 @@ elif pagina == " Ver MAP":
         else:
             st.markdown(f"{numero_nota}/ Sin recursos congelados para {etiqueta}.")
 
-    # "Otros programas" y, cuando no tienen congelados, "Bienes muebles" e "Inversiones
-    # financieras" comparten la nota 3/ ("Sin recursos congelados para este programa")
-    # y no repiten una nota propia. "Inversión pública" siempre lleva su propia nota.
+    # "Otros programas" ya no lleva nota propia. "Bienes muebles" e "Inversiones
+    # financieras" solo llevan nota si tienen recursos congelados. "Inversión
+    # pública" siempre lleva su propia nota.
     _nota_congelado_capitulo(nota_ip, "Inversión pública", [6000],
                               'ip_anual', 'ip_anual_texto', 'ip_periodo', 'ip_periodo_texto')
-    if nota_bm != NOTA_SIN_CONG:
+    if nota_bm is not None:
         _nota_congelado_capitulo(nota_bm, "Bienes muebles, inmuebles e intangibles", [5000],
                                   'bm_anual', 'bm_anual_texto', 'bm_periodo', 'bm_periodo_texto')
-    if nota_if != NOTA_SIN_CONG:
+    if nota_if is not None:
         _nota_congelado_capitulo(nota_if, "Inversiones financieras y otras provisiones", [7000],
                                   'if_anual', 'if_anual_texto', 'if_periodo', 'if_periodo_texto')
 
