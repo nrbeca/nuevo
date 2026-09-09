@@ -707,7 +707,7 @@ elif pagina == " Ver MAP":
     st.markdown("**Notas:**")
     st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
     st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
-    st.markdown("3/ El presupuesto modificado no incluye recursos congelados.")
+    st.markdown("3/ Sin recursos congelados.")
     for prog in programas_especificos:
         v_anual     = congelados.get('valores', {}).get(prog, 0)
         texto_anual = congelados.get('textos', {}).get(prog, '')
