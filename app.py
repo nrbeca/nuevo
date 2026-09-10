@@ -841,42 +841,36 @@ elif pagina == " Ver SICOP":
             ('entidades_paraestatales', 'Entidades Paraestatales', config.get('entidades_paraestatales', []))
         ]
 
-        ejercicio_data = []
-        ejercicio_data.append({
-            'UR': '', 'Denominación': 'Total general:',
-            'Original': totales['Original'], 'Mod. Anual': totales['Modificado_anual'],
-            'Mod. Periodo': totales['Modificado_periodo'], 'Ejercido': totales['Ejercido_acumulado'],
-            'Disp. Anual': totales['Modificado_anual'] - totales['Ejercido_acumulado'],
-            'Disp. Periodo': totales['Disponible_periodo'],
-            '% Av. Anual': (totales['Ejercido_acumulado'] / totales['Modificado_anual'] * 100) if totales['Modificado_anual'] > 0 else 0,
-            '% Av. Periodo': (totales['Pct_avance_periodo'] * 100) if totales.get('Pct_avance_periodo') else 0,
-            '_tipo': 'total'})
+        def _fila_ejercicio(ur_txt, denom, d, tipo):
+            return {
+                'UR': ur_txt, 'Denominación': denom,
+                'Original': d.get('Original', 0),
+                'Mod. Anual 2/': d.get('Modificado_anual', 0),
+                'Comp. Anual': d.get('Comprometido_anual', 0),
+                'Mod. Periodo 3/': d.get('Modificado_periodo', 0),
+                'Comp. Periodo': d.get('Comprometido_periodo', 0),
+                'Ejercido': d.get('Ejercido', 0),
+                'Devengado': d.get('Devengado', 0),
+                'Ejercido Trámite': d.get('Ejercido_tramite', 0),
+                'Disp. Anual': d.get('Disponible_anual', 0),
+                'Disp. Periodo': d.get('Disponible_periodo', 0),
+                '% Av. Anual': (d.get('Pct_avance_anual', 0) * 100) if d.get('Pct_avance_anual') else 0,
+                '% Av. Periodo': (d.get('Pct_avance_periodo', 0) * 100) if d.get('Pct_avance_periodo') else 0,
+                '_tipo': tipo,
+            }
+
+        ejercicio_data = [_fila_ejercicio('', 'Total general:', totales, 'total')]
 
         for seccion_key, seccion_nombre, urs_lista in secciones_config:
             if seccion_key in subtotales:
-                st_data = subtotales[seccion_key]
-                ejercicio_data.append({
-                    'UR': '', 'Denominación': seccion_nombre,
-                    'Original': st_data['Original'], 'Mod. Anual': st_data['Modificado_anual'],
-                    'Mod. Periodo': st_data['Modificado_periodo'], 'Ejercido': st_data['Ejercido_acumulado'],
-                    'Disp. Anual': st_data['Modificado_anual'] - st_data['Ejercido_acumulado'],
-                    'Disp. Periodo': st_data['Disponible_periodo'],
-                    '% Av. Anual': (st_data['Ejercido_acumulado'] / st_data['Modificado_anual'] * 100) if st_data['Modificado_anual'] > 0 else 0,
-                    '% Av. Periodo': (st_data['Pct_avance_periodo'] * 100) if st_data.get('Pct_avance_periodo') else 0,
-                    '_tipo': 'subtotal'})
+                ejercicio_data.append(_fila_ejercicio('', seccion_nombre, subtotales[seccion_key], 'subtotal'))
             contador_ur = 0
             for ur in urs_lista:
                 ur_rows = resumen_df[resumen_df['UR'] == ur] if not resumen_df.empty else pd.DataFrame()
                 if not ur_rows.empty:
                     ur_data = ur_rows.iloc[0]
-                    ejercicio_data.append({
-                        'UR': ur, 'Denominación': denominaciones.get(ur, ur),
-                        'Original': ur_data.get('Original', 0), 'Mod. Anual': ur_data.get('Modificado_anual', 0),
-                        'Mod. Periodo': ur_data.get('Modificado_periodo', 0), 'Ejercido': ur_data.get('Ejercido_acumulado', 0),
-                        'Disp. Anual': ur_data.get('Disponible_anual', 0), 'Disp. Periodo': ur_data.get('Disponible_periodo', 0),
-                        '% Av. Anual': (ur_data.get('Pct_avance_anual', 0) * 100) if ur_data.get('Pct_avance_anual') else 0,
-                        '% Av. Periodo': (ur_data.get('Pct_avance_periodo', 0) * 100) if ur_data.get('Pct_avance_periodo') else 0,
-                        '_tipo': 'ur_gris' if contador_ur % 2 == 1 else 'ur'})
+                    tipo = 'ur_gris' if contador_ur % 2 == 1 else 'ur'
+                    ejercicio_data.append(_fila_ejercicio(ur, denominaciones.get(ur, ur), ur_data, tipo))
                     contador_ur += 1
 
         df_ejercicio = pd.DataFrame(ejercicio_data)
@@ -895,8 +889,9 @@ elif pagina == " Ver SICOP":
             return [''] * len(row)
 
         st.dataframe(
-            df_mostrar.style.format({'Original': '${:,.2f}', 'Mod. Anual': '${:,.2f}',
-                'Mod. Periodo': '${:,.2f}', 'Ejercido': '${:,.2f}',
+            df_mostrar.style.format({'Original': '${:,.2f}', 'Mod. Anual 2/': '${:,.2f}',
+                'Comp. Anual': '${:,.2f}', 'Mod. Periodo 3/': '${:,.2f}', 'Comp. Periodo': '${:,.2f}',
+                'Ejercido': '${:,.2f}', 'Devengado': '${:,.2f}', 'Ejercido Trámite': '${:,.2f}',
                 'Disp. Anual': '${:,.2f}', 'Disp. Periodo': '${:,.2f}',
                 '% Av. Anual': '{:.2f}%', '% Av. Periodo': '{:.2f}%'
             }).apply(estilo_estado_ejercicio, axis=1),
