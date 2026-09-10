@@ -68,14 +68,15 @@ def generar_excel_sicop(resultados, df_original=None):
     # ── Anchos de columna ────────────────────────────────────────────────────
     anchos = {
         'A': 12, 'B': 106.57, 'C': 32.57, 'D': 32,
-        'E': 38, 'F': 35.29,  'G': 32,    'H': 31.29,
-        'I': 26, 'J': 25.43
+        'E': 32, 'F': 32,     'G': 32,    'H': 31.29,
+        'I': 28, 'J': 28,     'K': 26,    'L': 25.43,
+        'M': 24, 'N': 24,
     }
     for col, ancho in anchos.items():
         ws.column_dimensions[col].width = ancho
 
     for row in range(2, 4):
-        for col in range(1, 11):
+        for col in range(1, 15):
             ws.cell(row=row, column=col).border = border_none
 
     # ── Logo ─────────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ def generar_excel_sicop(resultados, df_original=None):
         pass
 
     # ── Encabezado ───────────────────────────────────────────────────────────
-    ws.merge_cells('A1:J1')
+    ws.merge_cells('A1:N1')
     ws['A1'] = (
         'Unidad de Administración y Finanzas\n'
         'Dirección General de Programación, Presupuesto y Finanzas'
@@ -107,7 +108,7 @@ def generar_excel_sicop(resultados, df_original=None):
     ws.row_dimensions[1].height = 44.25
 
     hoy = date.today()
-    ws.merge_cells('A4:J4')
+    ws.merge_cells('A4:N4')
     ws['A4'] = (
         f'Estado del ejercicio del 1 de enero al {formatear_fecha(hoy)} '
         f'por Unidad Responsable de la Secretaría de Agricultura y Desarrollo Rural 1/'
@@ -122,12 +123,16 @@ def generar_excel_sicop(resultados, df_original=None):
         'UR', 'Denominación',
         'Original\n( a )',
         'Modificado anual 2/\n( b )',
-        'Modificado al periodo 3/\n( c )',
-        'Ejercido Acumulado\n(ejercido + devengado + ejercido en trámite)\n( d )',
-        'Disponible Anual\n( e ) = ( b ) - ( d )',
-        'Disponible al periodo\n( f ) = ( c ) - ( d )',
-        'Porcentaje de avance anual\n( g ) = ( d ) / ( b )',
-        'Porcentaje de avance al periodo\n( h ) = ( d ) / ( c )',
+        'Comprometido anual\n( c )',
+        'Modificado al periodo 3/\n( d )',
+        'Comprometido al periodo\n( e )',
+        'Ejercido\n( f )',
+        'Devengado\n( g )',
+        'Ejercido en trámite\n( h )',
+        'Disponible Anual\n( i ) = ( b ) - ( c + f + g + h )',
+        'Disponible al periodo\n( j ) = ( d ) - ( e + f + g + h )',
+        'Porcentaje de avance anual\n( k ) = ( c + f + g + h ) / ( b )',
+        'Porcentaje de avance al periodo\n( l ) = ( e + f + g + h ) / ( d )',
     ]
     for col, header in enumerate(headers, 1):
         cell            = ws.cell(row=6, column=col, value=header)
@@ -152,15 +157,17 @@ def generar_excel_sicop(resultados, df_original=None):
         ws.cell(row=fila, column=2).border = border_dotted
 
         keys = [
-            'Original', 'Modificado_anual', 'Modificado_periodo',
-            'Ejercido_acumulado', 'Disponible_anual', 'Disponible_periodo',
+            'Original', 'Modificado_anual', 'Comprometido_anual',
+            'Modificado_periodo', 'Comprometido_periodo',
+            'Ejercido', 'Devengado', 'Ejercido_tramite',
+            'Disponible_anual', 'Disponible_periodo',
             'Pct_avance_anual', 'Pct_avance_periodo',
         ]
         for col_idx, key in enumerate(keys, 3):
             cell               = ws.cell(row=fila, column=col_idx, value=datos.get(key, 0))
             cell.font          = font_color
             cell.fill          = fill_row
-            cell.number_format = fmt_pct if col_idx >= 9 else fmt_money
+            cell.number_format = fmt_pct if col_idx >= 13 else fmt_money
             cell.alignment     = Alignment(vertical='top')
             cell.border        = border_dotted
         ws.row_dimensions[fila].height = 24
@@ -182,15 +189,17 @@ def generar_excel_sicop(resultados, df_original=None):
         cell_denom.border    = border_dotted
 
         keys = [
-            'Original', 'Modificado_anual', 'Modificado_periodo',
-            'Ejercido_acumulado', 'Disponible_anual', 'Disponible_periodo',
+            'Original', 'Modificado_anual', 'Comprometido_anual',
+            'Modificado_periodo', 'Comprometido_periodo',
+            'Ejercido', 'Devengado', 'Ejercido_tramite',
+            'Disponible_anual', 'Disponible_periodo',
             'Pct_avance_anual', 'Pct_avance_periodo',
         ]
         for col_idx, key in enumerate(keys, 3):
             cell               = ws.cell(row=fila, column=col_idx, value=datos.get(key, 0))
             cell.font          = font_data
             cell.fill          = fill_row
-            cell.number_format = fmt_pct if col_idx >= 9 else fmt_money
+            cell.number_format = fmt_pct if col_idx >= 13 else fmt_money
             cell.alignment     = Alignment(vertical='top')
             cell.border        = border_dotted
         ws.row_dimensions[fila].height = 24
@@ -224,7 +233,7 @@ def generar_excel_sicop(resultados, df_original=None):
 
     def _nota(fila, texto, altura=35):
         # Deshacer cualquier merge previo en esta fila antes de crear el nuevo
-        rango = f'A{fila}:J{fila}'
+        rango = f'A{fila}:N{fila}'
         merges_a_quitar = [str(m) for m in ws.merged_cells.ranges if m.min_row == fila]
         for m in merges_a_quitar:
             ws.unmerge_cells(m)
