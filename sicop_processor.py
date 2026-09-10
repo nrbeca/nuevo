@@ -21,6 +21,7 @@ def obtener_columnas_hasta_mes(mes_numero):
     return {
         'modificaciones': [f'MO{abrev}' for abrev, _ in meses_usar],
         'reservas': [f'RESERVA_{completo}' for _, completo in meses_usar],
+        'comprometido': [f'CO{abrev}' for abrev, _ in meses_usar],
     }
 
 
@@ -77,11 +78,18 @@ def procesar_sicop(df, filename):
        ), axis=1
     )
 
-    for col in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE']:
+    for col in ['EJERCIDO', 'DEVENGADO', 'EJERCIDO_TRAMITE', 'COMPROMETIDO']:
         if col not in df.columns:
             df[col] = 0
         else:
-            df[col] = df[col].fillna(0)
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+    cols_comprometido_mes = [f'CO{abrev}' for abrev, _ in
+        [('EN', ''), ('FE', ''), ('MR', ''), ('AB', ''), ('MY', ''), ('JN', ''),
+         ('JL', ''), ('AG', ''), ('SE', ''), ('OC', ''), ('NO', ''), ('DI', '')]]
+    for col in cols_comprometido_mes:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
     df['EJERCIDO_REAL'] = df['EJERCIDO'] + df['DEVENGADO'] + df['EJERCIDO_TRAMITE']
 
@@ -104,7 +112,9 @@ def procesar_sicop(df, filename):
 
         if len(df_ur) == 0:
             resultados_ur[ur] = {
-                'Original': 0, 'Modificado_anual': 0, 'Modificado_periodo': 0, 'Ejercido': 0
+                'Original': 0, 'Modificado_anual': 0, 'Modificado_periodo': 0,
+                'Comprometido_anual': 0, 'Comprometido_periodo': 0,
+                'Ejercido': 0, 'Devengado': 0, 'Ejercido_tramite': 0,
             }
             continue
 
@@ -116,8 +126,11 @@ def procesar_sicop(df, filename):
         df_modificado = df_ur
         modificado_anual = round_like_excel(df_modificado['Modificado_neto'].sum(), 2)
 
+        comprometido_anual = round_like_excel(df_ur['COMPROMETIDO'].sum(), 2) if 'COMPROMETIDO' in df_ur.columns else 0
+
         if es_cierre_año_anterior or mes_archivo == 12:
             modificado_periodo = modificado_anual
+            comprometido_periodo = comprometido_anual
         else:
             cols_a_usar = obtener_columnas_hasta_mes(mes_archivo)
             cols_mod = [col for col in cols_a_usar['modificaciones'] if col in df_modificado.columns]
@@ -126,29 +139,48 @@ def procesar_sicop(df, filename):
             cong_periodo = df_modificado[cols_res].sum(axis=1).sum() if cols_res else 0
             modificado_periodo = round_like_excel(mod_bruto - cong_periodo, 2)
 
+            cols_com = [col for col in cols_a_usar['comprometido'] if col in df_ur.columns]
+            comprometido_periodo = round_like_excel(df_ur[cols_com].sum(axis=1).sum(), 2) if cols_com else 0
+
         ejercido = round_like_excel(df_ur['EJERCIDO_REAL'].sum(), 2)
+        ejercido_solo = round_like_excel(df_ur['EJERCIDO'].sum(), 2)
+        devengado = round_like_excel(df_ur['DEVENGADO'].sum(), 2)
+        ejercido_tramite = round_like_excel(df_ur['EJERCIDO_TRAMITE'].sum(), 2)
 
         resultados_ur[ur] = {
             'Original': original,
             'Modificado_anual': modificado_anual,
             'Modificado_periodo': modificado_periodo,
-            'Ejercido': ejercido
+            'Comprometido_anual': comprometido_anual,
+            'Comprometido_periodo': comprometido_periodo,
+            'Ejercido_acumulado': ejercido,
+            'Ejercido': ejercido_solo,
+            'Devengado': devengado,
+            'Ejercido_tramite': ejercido_tramite,
         }
 
     resumen = pd.DataFrame.from_dict(resultados_ur, orient='index').reset_index()
-    resumen.columns = ['UR', 'Original', 'Modificado_anual', 'Modificado_periodo', 'Ejercido_acumulado']
+    resumen = resumen.rename(columns={'index': 'UR'})
+
+    # Total anual/periodo (columnas auxiliares, no se muestran): (c+f+g+h) y (e+f+g+h)
+    resumen['Total_anual'] = (
+        resumen['Comprometido_anual'] + resumen['Ejercido'] + resumen['Devengado'] + resumen['Ejercido_tramite']
+    )
+    resumen['Total_periodo'] = (
+        resumen['Comprometido_periodo'] + resumen['Ejercido'] + resumen['Devengado'] + resumen['Ejercido_tramite']
+    )
 
     resumen['Disponible_anual'] = resumen.apply(
-        lambda row: round_like_excel(row['Modificado_anual'] - row['Ejercido_acumulado'], 2), axis=1
+        lambda row: round_like_excel(row['Modificado_anual'] - row['Total_anual'], 2), axis=1
     )
     resumen['Disponible_periodo'] = resumen.apply(
-        lambda row: round_like_excel(row['Modificado_periodo'] - row['Ejercido_acumulado'], 2), axis=1
+        lambda row: round_like_excel(row['Modificado_periodo'] - row['Total_periodo'], 2), axis=1
     )
     resumen['Pct_avance_anual'] = resumen.apply(
-        lambda row: row['Ejercido_acumulado'] / row['Modificado_anual'] if row['Modificado_anual'] != 0 else 0, axis=1
+        lambda row: row['Total_anual'] / row['Modificado_anual'] if row['Modificado_anual'] != 0 else 0, axis=1
     )
     resumen['Pct_avance_periodo'] = resumen.apply(
-        lambda row: row['Ejercido_acumulado'] / row['Modificado_periodo'] if row['Modificado_periodo'] != 0 else 0, axis=1
+        lambda row: row['Total_periodo'] / row['Modificado_periodo'] if row['Modificado_periodo'] != 0 else 0, axis=1
     )
 
     def calcular_subtotal(urs_lista):
@@ -157,12 +189,19 @@ def procesar_sicop(df, filename):
             'Original': df_seccion['Original'].sum(),
             'Modificado_anual': df_seccion['Modificado_anual'].sum(),
             'Modificado_periodo': df_seccion['Modificado_periodo'].sum(),
+            'Comprometido_anual': df_seccion['Comprometido_anual'].sum(),
+            'Comprometido_periodo': df_seccion['Comprometido_periodo'].sum(),
             'Ejercido_acumulado': df_seccion['Ejercido_acumulado'].sum(),
+            'Ejercido': df_seccion['Ejercido'].sum(),
+            'Devengado': df_seccion['Devengado'].sum(),
+            'Ejercido_tramite': df_seccion['Ejercido_tramite'].sum(),
+            'Total_anual': df_seccion['Total_anual'].sum(),
+            'Total_periodo': df_seccion['Total_periodo'].sum(),
             'Disponible_anual': df_seccion['Disponible_anual'].sum(),
             'Disponible_periodo': df_seccion['Disponible_periodo'].sum(),
         }
-        subtotal['Pct_avance_anual'] = subtotal['Ejercido_acumulado'] / subtotal['Modificado_anual'] if subtotal['Modificado_anual'] != 0 else 0
-        subtotal['Pct_avance_periodo'] = subtotal['Ejercido_acumulado'] / subtotal['Modificado_periodo'] if subtotal['Modificado_periodo'] != 0 else 0
+        subtotal['Pct_avance_anual'] = subtotal['Total_anual'] / subtotal['Modificado_anual'] if subtotal['Modificado_anual'] != 0 else 0
+        subtotal['Pct_avance_periodo'] = subtotal['Total_periodo'] / subtotal['Modificado_periodo'] if subtotal['Modificado_periodo'] != 0 else 0
         return subtotal
 
     subtotal_sc = calcular_subtotal(config['sector_central'])
@@ -170,16 +209,26 @@ def procesar_sicop(df, filename):
     subtotal_od = calcular_subtotal(config['organos_desconcentrados'])
     subtotal_ep = calcular_subtotal(config['entidades_paraestatales'])
 
+    def _sumar_llave(llave):
+        return subtotal_sc[llave] + subtotal_of[llave] + subtotal_od[llave] + subtotal_ep[llave]
+
     total_general = {
-        'Original': subtotal_sc['Original'] + subtotal_of['Original'] + subtotal_od['Original'] + subtotal_ep['Original'],
-        'Modificado_anual': subtotal_sc['Modificado_anual'] + subtotal_of['Modificado_anual'] + subtotal_od['Modificado_anual'] + subtotal_ep['Modificado_anual'],
-        'Modificado_periodo': subtotal_sc['Modificado_periodo'] + subtotal_of['Modificado_periodo'] + subtotal_od['Modificado_periodo'] + subtotal_ep['Modificado_periodo'],
-        'Ejercido_acumulado': subtotal_sc['Ejercido_acumulado'] + subtotal_of['Ejercido_acumulado'] + subtotal_od['Ejercido_acumulado'] + subtotal_ep['Ejercido_acumulado'],
-        'Disponible_anual': subtotal_sc['Disponible_anual'] + subtotal_of['Disponible_anual'] + subtotal_od['Disponible_anual'] + subtotal_ep['Disponible_anual'],
-        'Disponible_periodo': subtotal_sc['Disponible_periodo'] + subtotal_of['Disponible_periodo'] + subtotal_od['Disponible_periodo'] + subtotal_ep['Disponible_periodo'],
+        'Original': _sumar_llave('Original'),
+        'Modificado_anual': _sumar_llave('Modificado_anual'),
+        'Modificado_periodo': _sumar_llave('Modificado_periodo'),
+        'Comprometido_anual': _sumar_llave('Comprometido_anual'),
+        'Comprometido_periodo': _sumar_llave('Comprometido_periodo'),
+        'Ejercido_acumulado': _sumar_llave('Ejercido_acumulado'),
+        'Ejercido': _sumar_llave('Ejercido'),
+        'Devengado': _sumar_llave('Devengado'),
+        'Ejercido_tramite': _sumar_llave('Ejercido_tramite'),
+        'Total_anual': _sumar_llave('Total_anual'),
+        'Total_periodo': _sumar_llave('Total_periodo'),
+        'Disponible_anual': _sumar_llave('Disponible_anual'),
+        'Disponible_periodo': _sumar_llave('Disponible_periodo'),
     }
-    total_general['Pct_avance_anual'] = total_general['Ejercido_acumulado'] / total_general['Modificado_anual'] if total_general['Modificado_anual'] != 0 else 0
-    total_general['Pct_avance_periodo'] = total_general['Ejercido_acumulado'] / total_general['Modificado_periodo'] if total_general['Modificado_periodo'] != 0 else 0
+    total_general['Pct_avance_anual'] = total_general['Total_anual'] / total_general['Modificado_anual'] if total_general['Modificado_anual'] != 0 else 0
+    total_general['Pct_avance_periodo'] = total_general['Total_periodo'] / total_general['Modificado_periodo'] if total_general['Modificado_periodo'] != 0 else 0
 
     # Congelados
     df_para_congelados = df_para_congelados[df_para_congelados['Nueva UR'].astype(str).isin(urs_validas)]
