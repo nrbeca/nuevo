@@ -3,6 +3,7 @@
 # ============================================================================
 
 import io
+from ajuste_excel import autoajustar_libro
 import base64
 from datetime import datetime, date
 from openpyxl import Workbook
@@ -274,12 +275,13 @@ def generar_excel_sicop(resultados, df_original=None):
         'Sin embargo la UR está reportando recursos al periodo.',
         altura=50)
 
-    # Nota 5/ — Control Operativo 62 (texto fijo)
+    # Nota 5/ — Controles Operativos 62 y 67 (texto fijo)
     fila = _nota(fila,
-        '5/ No se están considerando montos de los Controles Operativos (COP): COP 62')
+        '5/ No se están considerando montos de los Controles Operativos (COP): COP 62 y 67')
 
     # ── Guardar ───────────────────────────────────────────────────────────────
     output = io.BytesIO()
+    autoajustar_libro(wb)
     wb.save(output)
     output.seek(0)
     return output.getvalue()
