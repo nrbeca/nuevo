@@ -1,3 +1,4 @@
+
 """
 SADER - Sistema de Reportes Presupuestarios
 Versión con soporte simultáneo MAP/SICOP
@@ -632,6 +633,8 @@ elif pagina == " Ver MAP":
         nombre_base = _re.sub(r'\s+\d+/$', '', nombre_base).strip()
         d = programas.get(prog, {'Original': 0, 'ModificadoAnualNeto': 0, 'ModificadoPeriodoNeto': 0, 'Ejercido': 0})
         n = nota_por_prog[prog]
+        if n is None and not any(d.values()):
+            continue
         concepto = f"{prog} - {nombre_base}" + (f" {n}/" if n is not None else "")
         cuadro_data.append({'Concepto': concepto, 'Original': d.get('Original', 0),
             'Mod. Anual 3/': d.get('ModificadoAnualNeto', 0), 'Mod. Periodo 3/': d.get('ModificadoPeriodoNeto', 0),
@@ -717,7 +720,7 @@ elif pagina == " Ver MAP":
     st.markdown(f"**Fuente:** Elaborado con la base extraída del Módulo de Adecuaciones Presupuestarias (MAP), con corte al {formatear_fecha(ultimo_habil)}.")
     st.markdown("**Notas:**")
     st.markdown("1/ Incluye los capítulos de gasto 2000 \"Materiales y Suministros\" y 3000 \"Servicios Generales\".")
-    st.markdown("2/ Incluye subsidios y gastos asociados a cada programa, tal como capítulos de gasto 1000, 2000 y 3000.")
+    st.markdown("2/ Incluye gastos de operación asociados a cada programa, tal como capítulos de gasto 2000 y 3000.")
     st.markdown("3/ El presupuesto modificado no incluye recursos congelados.")
     for prog in programas_especificos:
         v_anual     = congelados.get('valores', {}).get(prog, 0)
@@ -739,11 +742,7 @@ elif pagina == " Ver MAP":
         if (v_anual == 0 or v_periodo == 0) and 'df_procesado' in resultados:
             try:
                 df_proc = resultados['df_procesado']
-                PROGRAMAS_ESPECIFICOS_CONF = config.get('programas_especificos', [])
-                df_calc = df_proc[
-                    df_proc['Capitulo'].isin(capitulos) &
-                    (~df_proc['Pp'].isin(PROGRAMAS_ESPECIFICOS_CONF))
-                ]
+                df_calc = df_proc[df_proc['Capitulo'].isin(capitulos)]
                 if not df_calc.empty and 'CongeladoPeriodo' in df_calc.columns:
                     if v_anual == 0:
                         v_anual = round(float(df_calc['CongeladoAnual'].sum()), 2)
