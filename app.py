@@ -435,7 +435,7 @@ with st.sidebar:
     if pagina == " Ver MAP":
         st.caption("*Cuadro de Presupuesto*")
     elif pagina == " Ver SICOP":
-        st.caption("*Estado del Ejercicio, Dashboard Presupuesto y Austeridad*")
+        st.caption("*Estado del Ejercicio y Dashboard Presupuesto*")
     st.markdown("---")
     st.markdown("### Estado de Datos")
     metadata = cargar_metadata()
@@ -486,7 +486,7 @@ if pagina == " Inicio":
             <p>Navega entre los reportes cargados sin perder información.</p>
             <ul>
                 <li><strong>Ver MAP:</strong> Cuadro de presupuesto</li>
-                <li><strong>Ver SICOP:</strong> Estado del ejercicio, Dashboard de Presupuesto y Austeridad</li>
+                <li><strong>Ver SICOP:</strong> Estado del ejercicio y Dashboard de Presupuesto</li>
                 <li>Descarga Excel desde cualquier vista</li>
             </ul>
         </div>
@@ -821,7 +821,13 @@ elif pagina == " Ver SICOP":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs([" Estado del Ejercicio", " Dashboard Presupuesto", " Dashboard Austeridad"])
+    # La pestaña de Austeridad está oculta; cambiar a True para volver a mostrarla
+    MOSTRAR_AUSTERIDAD = False
+    nombres_tabs = [" Estado del Ejercicio", " Dashboard Presupuesto"]
+    if MOSTRAR_AUSTERIDAD:
+        nombres_tabs.append(" Dashboard Austeridad")
+    tabs = st.tabs(nombres_tabs)
+    tab1, tab2 = tabs[0], tabs[1]
 
     # ========================================================================
     # TAB 1: Estado del Ejercicio
@@ -1117,100 +1123,102 @@ elif pagina == " Ver SICOP":
     # ========================================================================
     # TAB 3: Dashboard Austeridad
     # ========================================================================
-    with tab3:
-        st.markdown("### Dashboard Austeridad")
+    if MOSTRAR_AUSTERIDAD:
+        with tabs[2]:
+            st.markdown("### Dashboard Austeridad")
 
-        datos_sicop_aust = procesar_sicop_austeridad(df_original)
+            datos_sicop_aust = procesar_sicop_austeridad(df_original)
 
-        urs_config = sorted(list(set(
-            config.get('sector_central', []) +
-            config.get('oficinas', []) +
-            config.get('organos_desconcentrados', []) +
-            config.get('entidades_paraestatales', []) +
-            URS_LEGADO_2026
-        )))
+            urs_config = sorted(list(set(
+                config.get('sector_central', []) +
+                config.get('oficinas', []) +
+                config.get('organos_desconcentrados', []) +
+                config.get('entidades_paraestatales', []) +
+                URS_LEGADO_2026
+            )))
 
-        opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
+            opciones_ur_aust = [f"{ur} - {DENOMINACIONES_2026.get(ur, UR_NOMBRES.get(ur, ur))}" for ur in urs_config]
 
-        ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
-        ur_codigo = ur_seleccionada.split(" - ")[0]
-        ur_nombre = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
+            ur_seleccionada = st.selectbox("Selecciona UR:", opciones_ur_aust, key="ur_austeridad")
+            ur_codigo = ur_seleccionada.split(" - ")[0]
+            ur_nombre = DENOMINACIONES_2026.get(ur_codigo, UR_NOMBRES.get(ur_codigo, ur_codigo))
 
-        datos_dashboard = generar_dashboard_austeridad_desde_sicop(datos_sicop_aust, ur_codigo)
+            datos_dashboard = generar_dashboard_austeridad_desde_sicop(datos_sicop_aust, ur_codigo)
 
-        año_actual  = date.today().year
-        año_anterior = año_actual - 1
-        hoy_aust    = date.today()
-        mes_nombre  = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy_aust.month-1]
+            año_actual  = date.today().year
+            año_anterior = año_actual - 1
+            hoy_aust    = date.today()
+            mes_nombre  = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy_aust.month-1]
 
-        st.markdown(f"#### Estado del ejercicio del 1 de enero al {hoy_aust.day} de {mes_nombre} de {año_actual}")
-        st.markdown(f"**{ur_codigo}.- {ur_nombre}**")
+            st.markdown(f"#### Estado del ejercicio del 1 de enero al {hoy_aust.day} de {mes_nombre} de {año_actual}")
+            st.markdown(f"**{ur_codigo}.- {ur_nombre}**")
 
-        total_ejercido_ant = sum(d['Ejercido_Anterior'] for d in datos_dashboard)
-        total_original     = sum(d['Original'] for d in datos_dashboard)
-        total_modificado   = sum(d['Modificado'] for d in datos_dashboard)
-        total_ejercido     = sum(d['Ejercido_Real'] for d in datos_dashboard)
+            total_ejercido_ant = sum(d['Ejercido_Anterior'] for d in datos_dashboard)
+            total_original     = sum(d['Original'] for d in datos_dashboard)
+            total_modificado   = sum(d['Modificado'] for d in datos_dashboard)
+            total_ejercido     = sum(d['Ejercido_Real'] for d in datos_dashboard)
 
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(create_kpi_card(f"Ejercido {año_anterior}", format_currency(total_ejercido_ant)), unsafe_allow_html=True)
-        with col2:
-            st.markdown(create_kpi_card("Original", format_currency(total_original)), unsafe_allow_html=True)
-        with col3:
-            st.markdown(create_kpi_card("Modificado", format_currency(total_modificado)), unsafe_allow_html=True)
-        with col4:
-            st.markdown(create_kpi_card("Ejercido Real", format_currency(total_ejercido)), unsafe_allow_html=True)
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown(create_kpi_card(f"Ejercido {año_anterior}", format_currency(total_ejercido_ant)), unsafe_allow_html=True)
+            with col2:
+                st.markdown(create_kpi_card("Original", format_currency(total_original)), unsafe_allow_html=True)
+            with col3:
+                st.markdown(create_kpi_card("Modificado", format_currency(total_modificado)), unsafe_allow_html=True)
+            with col4:
+                st.markdown(create_kpi_card("Ejercido Real", format_currency(total_ejercido)), unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### Partidas sujetas a Austeridad Republicana")
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### Partidas sujetas a Austeridad Republicana")
 
-        df_display = pd.DataFrame(datos_dashboard)
-        df_display = df_display.rename(columns={
-            'Denominacion': 'Denominación',
-            'Ejercido_Anterior': f'Ejercido {año_anterior}',
-            'Ejercido_Real': 'Ejercido Real',
-            'Avance_Anual': 'Avance Anual'
-        })
-        if 'Solicitud_Pago' in df_display.columns:
-            df_display = df_display.drop(columns=['Solicitud_Pago'])
+            df_display = pd.DataFrame(datos_dashboard)
+            df_display = df_display.rename(columns={
+                'Denominacion': 'Denominación',
+                'Ejercido_Anterior': f'Ejercido {año_anterior}',
+                'Ejercido_Real': 'Ejercido Real',
+                'Avance_Anual': 'Avance Anual'
+            })
+            if 'Solicitud_Pago' in df_display.columns:
+                df_display = df_display.drop(columns=['Solicitud_Pago'])
 
-        def format_avance(val):
-            if val is None or val == '':
+            def format_avance(val):
+                if val is None or val == '':
+                    return ''
+                if isinstance(val, str):
+                    return val
+                return f"{val:.2%}"
+
+            def color_nota(val):
+                if pd.isna(val) or val == '':
+                    return ''
+                if 'Solicitar dictamen' in str(val):
+                    return 'background-color: #FFB6C1'
+                elif 'Monto ejercido real mayor' in str(val):
+                    return 'background-color: #FFD699'
                 return ''
-            if isinstance(val, str):
-                return val
-            return f"{val:.2%}"
 
-        def color_nota(val):
-            if pd.isna(val) or val == '':
-                return ''
-            if 'Solicitar dictamen' in str(val):
-                return 'background-color: #FFB6C1'
-            elif 'Monto ejercido real mayor' in str(val):
-                return 'background-color: #FFD699'
-            return ''
+            styled_df = df_display.style.format({
+                f'Ejercido {año_anterior}': '${:,.2f}',
+                'Original': '${:,.2f}', 'Modificado': '${:,.2f}',
+                'Ejercido Real': '${:,.2f}',
+                'Avance Anual': lambda x: format_avance(x)
+            })
+            try:
+                styled_df = styled_df.map(color_nota, subset=['Nota'])
+            except AttributeError:
+                styled_df = styled_df.applymap(color_nota, subset=['Nota'])
 
-        styled_df = df_display.style.format({
-            f'Ejercido {año_anterior}': '${:,.2f}',
-            'Original': '${:,.2f}', 'Modificado': '${:,.2f}',
-            'Ejercido Real': '${:,.2f}',
-            'Avance Anual': lambda x: format_avance(x)
-        })
-        try:
-            styled_df = styled_df.map(color_nota, subset=['Nota'])
-        except AttributeError:
-            styled_df = styled_df.applymap(color_nota, subset=['Nota'])
+            st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
 
-        st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
-
-        excel_aust_bytes = generar_excel_austeridad(
-            datos_dashboard, ur_codigo, ur_nombre,
-            año_anterior=año_anterior, año_actual=año_actual
-        )
-        st.download_button(
-            label=" Descargar Excel Austeridad",
-            data=excel_aust_bytes,
-            file_name=f'Dashboard_Austeridad_{ur_codigo}_{date.today().strftime("%d%b%Y").upper()}.xlsx',
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            key="download_excel_austeridad"
-        )
+            excel_aust_bytes = generar_excel_austeridad(
+                datos_dashboard, ur_codigo, ur_nombre,
+                año_anterior=año_anterior, año_actual=año_actual
+            )
+            st.download_button(
+                label=" Descargar Excel Austeridad",
+                data=excel_aust_bytes,
+                file_name=f'Dashboard_Austeridad_{ur_codigo}_{date.today().strftime("%d%b%Y").upper()}.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                key="download_excel_austeridad"
+            )
+        
