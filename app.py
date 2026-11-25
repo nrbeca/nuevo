@@ -916,7 +916,7 @@ elif pagina == " Ver SICOP":
         st.markdown(f"3/ El Presupuesto Modificado al periodo no incluye \\${cong_periodo:,.2f} ({texto_periodo}), recursos congelados.")
         st.markdown("4/ La Unidad Responsable 233 (Dirección General de Agregación de Valor y Comercialización) fue eliminada de acuerdo con el Reglamento Interior de la Secretaría de Agricultura y Desarrollo Rural de fecha 31 de diciembre de 2025. Sin embargo la UR está reportando recursos al periodo.")
 
-        st.markdown("5/ No se están considerando montos de los Controles Operativos (COP): COP 62")
+        st.markdown("5/ No se están considerando montos de los Controles Operativos (COP): COP 62 y 67")
 
     # ========================================================================
     # TAB 2: Dashboard Presupuesto
