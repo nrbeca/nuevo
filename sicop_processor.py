@@ -1,3 +1,4 @@
+
 # ============================================================================
 # PROCESADOR DE ARCHIVOS SICOP
 # ============================================================================
@@ -56,7 +57,7 @@ def mapear_ur(id_unidad, config):
 
 def get_co_filter_for_ur(ur, config, for_original=False):
     if for_original:
-        return [0, 67]
+        return [0]
     return [0, 10, 40, 50, 51]
 
 
@@ -103,8 +104,7 @@ def procesar_sicop(df, filename):
     df = df[df['Nueva UR'].isin(urs_validas_str)].copy()
     df = df[~df['Partida'].isin([39801])].copy()
     df = df[~df['CAPITULO'].isin([1])].copy()
-    # Se excluyen los COP 60-69, excepto el 67
-    df = df[~(df['CONTROL_OPERATIVO'].between(60, 69) & (df['CONTROL_OPERATIVO'] != 67))].copy()
+    df = df[~df['CONTROL_OPERATIVO'].between(60, 69)].copy()
 
     resultados_ur = {}
 
@@ -121,7 +121,7 @@ def procesar_sicop(df, filename):
 
         df_ur['Modificado_neto'] = df_ur['MODIFICADO_AUTORIZADO'] - df_ur['RESERVAS']
 
-        df_co0 = df_ur[df_ur['CONTROL_OPERATIVO'].isin([0, 67])]
+        df_co0 = df_ur[df_ur['CONTROL_OPERATIVO'] == 0]
         original = round_like_excel(df_co0['ORIGINAL'].sum(), 2)
 
         df_modificado = df_ur
@@ -275,7 +275,7 @@ def procesar_sicop(df, filename):
                 continue
 
             df_cap_orig = df_ur[df_ur['CAPITULO'] == cap]
-            df_cap_orig = df_cap_orig[df_cap_orig['CONTROL_OPERATIVO'].isin([0, 67])]
+            df_cap_orig = df_cap_orig[df_cap_orig['CONTROL_OPERATIVO'] == 0]
             original = round_like_excel(df_cap_orig['ORIGINAL'].sum(), 2)
 
             mod_anual = round_like_excel(df_cap['MODIFICADO_AUTORIZADO'].sum() - df_cap['RESERVAS'].sum(), 2)
